@@ -12,6 +12,8 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.IntValue COOLDOWN_TICKS;
     public static final ModConfigSpec.DoubleValue TIME_SCALE;
     public static final ModConfigSpec.DoubleValue RADIUS;
+    public static final ModConfigSpec.IntValue SNAPSHOT_HISTORY_TICKS;
+    public static final ModConfigSpec.IntValue MAX_TRACKED_ENTITIES_PER_SESSION;
 
     static {
         ModConfigSpec.Builder commonBuilder = new ModConfigSpec.Builder();
@@ -37,6 +39,15 @@ public final class TimeEngineConfig {
                 .comment("Entity tracking radius for a temporal session, in blocks.")
                 .defineInRange("radius", TemporalConstants.DEFAULT_RADIUS, 1.0D, 256.0D);
         serverBuilder.pop();
+
+        serverBuilder.push("snapshots");
+        SNAPSHOT_HISTORY_TICKS = serverBuilder
+                .comment("Length of retained entity history in server ticks. 20 ticks = 1 second.")
+                .defineInRange("historyTicks", 20 * 10, 20, 20 * 60 * 10);
+        MAX_TRACKED_ENTITIES_PER_SESSION = serverBuilder
+                .comment("Maximum nearby mobs and projectiles captured per active temporal session.")
+                .defineInRange("maxTrackedEntitiesPerSession", 128, 1, 2048);
+        serverBuilder.pop();
         SERVER_SPEC = serverBuilder.build();
     }
 
@@ -61,5 +72,13 @@ public final class TimeEngineConfig {
 
     public static double radius() {
         return RADIUS.get();
+    }
+
+    public static int snapshotHistoryTicks() {
+        return SNAPSHOT_HISTORY_TICKS.get();
+    }
+
+    public static int maxTrackedEntitiesPerSession() {
+        return MAX_TRACKED_ENTITIES_PER_SESSION.get();
     }
 }

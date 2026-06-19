@@ -15,6 +15,6 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
 NeoForge generates the configuration files after the first launch:
 
 - `config/time_engine-common.toml` controls diagnostic logging.
-- `<world>/serverconfig/time_engine-server.toml` controls session duration, cooldown, time scale, and radius.
+- `<world>/serverconfig/time_engine-server.toml` controls session duration, cooldown, time scale, radius, and snapshot limits.
 
 Set `diagnosticLogging = true` to enable Time Engine lifecycle logs. Warnings and errors remain enabled regardless of this flag.
