@@ -1,0 +1,7 @@
+{
+  "item.time_engine.debug_item": "Отладочный темпоральный предмет",
+  "message.time_engine.temporal.started": "Темпоральный разгон активирован на %s секунд",
+  "message.time_engine.temporal.stopped": "Темпоральный разгон остановлен",
+  "message.time_engine.temporal.expired": "Темпоральный разгон завершён",
+  "message.time_engine.temporal.cooldown": "Перезарядка темпорального разгона: %s тиков"
+}

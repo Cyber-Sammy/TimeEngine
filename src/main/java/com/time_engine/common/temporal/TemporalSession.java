@@ -1,0 +1,80 @@
+package com.time_engine.common.temporal;
+
+import java.util.UUID;
+
+public final class TemporalSession {
+    private final UUID sessionId;
+    private final UUID ownerPlayerId;
+    private final int startTick;
+    private final int durationTicks;
+    private final float timeScale;
+    private final double radius;
+    private boolean active;
+
+    public TemporalSession(
+            UUID sessionId,
+            UUID ownerPlayerId,
+            int startTick,
+            int durationTicks,
+            float timeScale,
+            double radius
+    ) {
+        if (durationTicks <= 0) {
+            throw new IllegalArgumentException("durationTicks must be positive");
+        }
+        if (timeScale <= 0.0F || timeScale > 1.0F) {
+            throw new IllegalArgumentException("timeScale must be in the range (0, 1]");
+        }
+        if (radius <= 0.0D) {
+            throw new IllegalArgumentException("radius must be positive");
+        }
+
+        this.sessionId = sessionId;
+        this.ownerPlayerId = ownerPlayerId;
+        this.startTick = startTick;
+        this.durationTicks = durationTicks;
+        this.timeScale = timeScale;
+        this.radius = radius;
+        this.active = true;
+    }
+
+    public UUID sessionId() {
+        return sessionId;
+    }
+
+    public UUID ownerPlayerId() {
+        return ownerPlayerId;
+    }
+
+    public int startTick() {
+        return startTick;
+    }
+
+    public int durationTicks() {
+        return durationTicks;
+    }
+
+    public float timeScale() {
+        return timeScale;
+    }
+
+    public double radius() {
+        return radius;
+    }
+
+    public boolean active() {
+        return active;
+    }
+
+    public int endTick() {
+        return startTick + durationTicks;
+    }
+
+    public boolean isExpired(int currentServerTick) {
+        return currentServerTick >= endTick();
+    }
+
+    void deactivate() {
+        active = false;
+    }
+}
