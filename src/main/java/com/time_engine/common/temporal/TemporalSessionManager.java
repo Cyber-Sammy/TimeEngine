@@ -7,6 +7,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +19,7 @@ public final class TemporalSessionManager {
 
     private final Map<UUID, TemporalSession> sessionsByOwner = new HashMap<>();
     private final Map<UUID, Integer> cooldownEndTicks = new HashMap<>();
+    private final Collection<TemporalSession> activeSessions = Collections.unmodifiableCollection(sessionsByOwner.values());
 
     private TemporalSessionManager() {
     }
@@ -59,6 +62,10 @@ public final class TemporalSessionManager {
 
     public boolean isActive(ServerPlayer player) {
         return getSession(player).isPresent();
+    }
+
+    public Collection<TemporalSession> getActiveSessions() {
+        return activeSessions;
     }
 
     public int getCooldownTicksRemaining(ServerPlayer player) {
