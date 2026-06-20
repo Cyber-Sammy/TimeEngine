@@ -19,6 +19,7 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.DoubleValue PHANTOM_ATTACK_REACH;
     public static final ModConfigSpec.DoubleValue PHANTOM_DAMAGE_MULTIPLIER;
     public static final ModConfigSpec.IntValue PHANTOM_ATTACK_COOLDOWN_TICKS;
+    public static final ModConfigSpec.DoubleValue PHANTOM_ALLOWED_HIT_TICK_DRIFT;
 
     static {
         ModConfigSpec.Builder commonBuilder = new ModConfigSpec.Builder();
@@ -102,6 +103,11 @@ public final class TimeEngineConfig {
                 serverBuilder
                         .comment("Minimum ticks between successful phantom attacks.")
                         .defineInRange("phantomAttackCooldownTicks", 10, 1, 200);
+        PHANTOM_ALLOWED_HIT_TICK_DRIFT =
+                serverBuilder
+                        .comment(
+                                "Maximum difference in perceived ticks between the client's rendered ghost frame and the server timeline.")
+                        .defineInRange("phantomAllowedHitTickDrift", 3.0D, 0.0D, 20.0D);
         serverBuilder.pop();
         SERVER_SPEC = serverBuilder.build();
     }
@@ -154,5 +160,9 @@ public final class TimeEngineConfig {
 
     public static int phantomAttackCooldownTicks() {
         return PHANTOM_ATTACK_COOLDOWN_TICKS.get();
+    }
+
+    public static double phantomAllowedHitTickDrift() {
+        return PHANTOM_ALLOWED_HIT_TICK_DRIFT.get();
     }
 }

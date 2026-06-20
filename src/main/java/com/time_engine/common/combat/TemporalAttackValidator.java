@@ -25,7 +25,8 @@ public final class TemporalAttackValidator {
         return INSTANCE;
     }
 
-    public ValidationResult validate(ServerPlayer attacker, UUID targetEntityId) {
+    public ValidationResult validate(
+            ServerPlayer attacker, UUID targetEntityId, double clientPerceivedTick) {
         TemporalSessionManager sessionManager = TemporalSessionManager.getInstance();
         Optional<TemporalSession> sessionResult = sessionManager.getSession(attacker);
         if (sessionResult.isEmpty()) {
@@ -46,10 +47,18 @@ public final class TemporalAttackValidator {
         }
 
         TemporalSession session = sessionResult.orElseThrow();
-        double perceivedTick = sessionManager.getPerceivedTick(session, serverTick);
+        double serverPerceivedTick = sessionManager.getPerceivedTick(session, serverTick);
+        if (clientPerceivedTick < session.startTick()
+                || clientPerceivedTick > session.endTick()
+                || !isPerceivedTickWithinDrift(
+                        clientPerceivedTick,
+                        serverPerceivedTick,
+                        TimeEngineConfig.phantomAllowedHitTickDrift())) {
+            return ValidationResult.rejected(RejectionReason.INVALID_CLIENT_TICK);
+        }
         Optional<EntitySnapshot> snapshotResult =
                 SnapshotManager.getInstance()
-                        .getInterpolatedSnapshot(targetEntityId, perceivedTick);
+                        .getInterpolatedSnapshot(targetEntityId, clientPerceivedTick);
         if (snapshotResult.isEmpty()) {
             return ValidationResult.rejected(RejectionReason.SNAPSHOT_NOT_FOUND);
         }
@@ -71,7 +80,11 @@ public final class TemporalAttackValidator {
         }
 
         return ValidationResult.accepted(
-                new ValidatedAttack(target, perceivedTick, hitDistance.getAsDouble()));
+                new ValidatedAttack(
+                        target,
+                        serverPerceivedTick,
+                        clientPerceivedTick,
+                        hitDistance.getAsDouble()));
     }
 
     public void recordSuccessfulAttack(ServerPlayer attacker) {
@@ -88,6 +101,14 @@ public final class TemporalAttackValidator {
         cooldownEndTicks.clear();
     }
 
+    static boolean isPerceivedTickWithinDrift(
+            double clientPerceivedTick, double serverPerceivedTick, double allowedDrift) {
+        return Double.isFinite(clientPerceivedTick)
+                && Double.isFinite(serverPerceivedTick)
+                && allowedDrift >= 0.0D
+                && Math.abs(clientPerceivedTick - serverPerceivedTick) <= allowedDrift;
+    }
+
     public enum RejectionReason {
         NONE,
         NO_ACTIVE_SESSION,
@@ -102,7 +123,11 @@ public final class TemporalAttackValidator {
         DAMAGE_REJECTED
     }
 
-    public record ValidatedAttack(Entity target, double perceivedTick, double hitDistance) {}
+    public record ValidatedAttack(
+            Entity target,
+            double serverPerceivedTick,
+            double validatedPerceivedTick,
+            double hitDistance) {}
 
     public record ValidationResult(ValidatedAttack attack, RejectionReason rejectionReason) {
         public static ValidationResult accepted(ValidatedAttack attack) {

@@ -26,10 +26,6 @@ public final class TemporalCombatService {
     public void handle(ServerPlayer attacker, PhantomHitRequestPayload payload) {
         int serverTick = attacker.getServer().getTickCount();
         UUID attackerId = attacker.getUUID();
-        if (!Double.isFinite(payload.clientPerceivedTick())) {
-            logRejection(attacker, RejectionReason.INVALID_CLIENT_TICK, serverTick);
-            return;
-        }
         if (lastRequestTicks.getOrDefault(attackerId, Integer.MIN_VALUE) == serverTick) {
             logRejection(attacker, RejectionReason.REQUEST_RATE_LIMITED, serverTick);
             return;
@@ -37,7 +33,9 @@ public final class TemporalCombatService {
         lastRequestTicks.put(attackerId, serverTick);
 
         ValidationResult result =
-                TemporalAttackValidator.getInstance().validate(attacker, payload.targetEntityId());
+                TemporalAttackValidator.getInstance()
+                        .validate(
+                                attacker, payload.targetEntityId(), payload.clientPerceivedTick());
         if (!result.accepted()) {
             logRejection(attacker, result.rejectionReason(), serverTick);
             return;
@@ -55,8 +53,8 @@ public final class TemporalCombatService {
                 attackerId,
                 attack.target().getUUID(),
                 serverTick,
-                attack.perceivedTick(),
-                payload.clientPerceivedTick(),
+                attack.serverPerceivedTick(),
+                attack.validatedPerceivedTick(),
                 attack.hitDistance());
     }
 
