@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.78'
+    id 'com.diffplug.spotless' version '7.2.1'
 }
 
 repositories {
@@ -50,6 +51,7 @@ neoForge {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 21
+    options.compilerArgs.addAll(['-Xlint:rawtypes', '-Xlint:unchecked', '-Werror'])
 }
 
 processResources {
@@ -67,4 +69,14 @@ dependencies {
 
 tasks.named('test', Test) {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        target 'src/**/*.java'
+        googleJavaFormat().aosp()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }

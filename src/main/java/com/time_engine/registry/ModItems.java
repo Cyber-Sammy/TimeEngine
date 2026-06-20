@@ -8,13 +8,15 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModItems {
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(TimeEngine.MOD_ID);
+    public static final DeferredRegister.Items ITEMS =
+            DeferredRegister.createItems(TimeEngine.MOD_ID);
 
-    public static final DeferredItem<Item> DEBUG_ITEM = ITEMS.register(
-            "debug_item",
-            () -> new DebugTemporalItem(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON))
-    );
+    public static final DeferredItem<Item> DEBUG_ITEM =
+            ITEMS.register(
+                    "debug_item",
+                    () ->
+                            new DebugTemporalItem(
+                                    new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
 
-    private ModItems() {
-    }
+    private ModItems() {}
 }

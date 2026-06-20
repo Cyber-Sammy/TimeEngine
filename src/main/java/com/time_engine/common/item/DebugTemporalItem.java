@@ -17,7 +17,8 @@ public final class DebugTemporalItem extends Item {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+    public InteractionResultHolder<ItemStack> use(
+            Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
@@ -26,7 +27,8 @@ public final class DebugTemporalItem extends Item {
         TemporalSessionManager manager = TemporalSessionManager.getInstance();
         if (manager.isActive(serverPlayer)) {
             manager.stopSession(serverPlayer);
-            serverPlayer.displayClientMessage(Component.translatable("message.time_engine.temporal.stopped"), true);
+            serverPlayer.displayClientMessage(
+                    Component.translatable("message.time_engine.temporal.stopped"), true);
             return InteractionResultHolder.success(stack);
         }
 
@@ -34,16 +36,14 @@ public final class DebugTemporalItem extends Item {
             double durationSeconds = TimeEngineConfig.durationTicks() / 20.0D;
             serverPlayer.displayClientMessage(
                     Component.translatable("message.time_engine.temporal.started", durationSeconds),
-                    true
-            );
+                    true);
             return InteractionResultHolder.success(stack);
         }
 
         int cooldownTicks = manager.getCooldownTicksRemaining(serverPlayer);
         serverPlayer.displayClientMessage(
                 Component.translatable("message.time_engine.temporal.cooldown", cooldownTicks),
-                true
-        );
+                true);
         return InteractionResultHolder.fail(stack);
     }
 }

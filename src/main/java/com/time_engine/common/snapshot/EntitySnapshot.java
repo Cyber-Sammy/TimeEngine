@@ -1,5 +1,7 @@
 package com.time_engine.common.snapshot;
 
+import java.util.Objects;
+import java.util.UUID;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -8,9 +10,6 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-
-import java.util.Objects;
-import java.util.UUID;
 
 public record EntitySnapshot(
         UUID entityId,
@@ -23,8 +22,7 @@ public record EntitySnapshot(
         Pose pose,
         AABB boundingBox,
         boolean alive,
-        float health
-) {
+        float health) {
     public static final float UNKNOWN_HEALTH = Float.NaN;
 
     public EntitySnapshot {
@@ -37,9 +35,10 @@ public record EntitySnapshot(
     }
 
     public static EntitySnapshot capture(Entity entity, int serverTick) {
-        float health = entity instanceof LivingEntity livingEntity
-                ? livingEntity.getHealth()
-                : UNKNOWN_HEALTH;
+        float health =
+                entity instanceof LivingEntity livingEntity
+                        ? livingEntity.getHealth()
+                        : UNKNOWN_HEALTH;
 
         return new EntitySnapshot(
                 entity.getUUID(),
@@ -52,8 +51,7 @@ public record EntitySnapshot(
                 entity.getPose(),
                 entity.getBoundingBox(),
                 entity.isAlive(),
-                health
-        );
+                health);
     }
 
     public boolean hasHealth() {
@@ -63,7 +61,8 @@ public record EntitySnapshot(
     public EntitySnapshot interpolate(EntitySnapshot next, double progress) {
         Objects.requireNonNull(next, "next");
         if (!entityId.equals(next.entityId)) {
-            throw new IllegalArgumentException("Cannot interpolate snapshots from different entities");
+            throw new IllegalArgumentException(
+                    "Cannot interpolate snapshots from different entities");
         }
 
         double clampedProgress = Mth.clamp(progress, 0.0D, 1.0D);
@@ -82,8 +81,7 @@ public record EntitySnapshot(
                 clampedProgress < 1.0D ? pose : next.pose,
                 interpolate(boundingBox, next.boundingBox, clampedProgress),
                 clampedProgress < 1.0D ? alive : next.alive,
-                interpolateHealth(next, clampedProgress)
-        );
+                interpolateHealth(next, clampedProgress));
     }
 
     private float interpolateHealth(EntitySnapshot next, double progress) {
@@ -104,7 +102,6 @@ public record EntitySnapshot(
                 Mth.lerp(progress, from.minZ, to.minZ),
                 Mth.lerp(progress, from.maxX, to.maxX),
                 Mth.lerp(progress, from.maxY, to.maxY),
-                Mth.lerp(progress, from.maxZ, to.maxZ)
-        );
+                Mth.lerp(progress, from.maxZ, to.maxZ));
     }
 }

@@ -7,6 +7,5 @@ public final class TemporalConstants {
     public static final double DEFAULT_RADIUS = 32.0D;
     public static final int SNAPSHOT_HISTORY_SAFETY_MARGIN_TICKS = 20;
 
-    private TemporalConstants() {
-    }
+    private TemporalConstants() {}
 }
