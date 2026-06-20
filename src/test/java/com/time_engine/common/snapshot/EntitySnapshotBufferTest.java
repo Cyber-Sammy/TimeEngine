@@ -1,17 +1,16 @@
 package com.time_engine.common.snapshot;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.UUID;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
-
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EntitySnapshotBufferTest {
     private static final UUID ENTITY_ID = UUID.fromString("e5f4aa17-705f-4ee5-a612-3f9feba5530f");
@@ -48,7 +47,9 @@ class EntitySnapshotBufferTest {
         EntitySnapshotBuffer buffer = new EntitySnapshotBuffer(ENTITY_ID, 3);
         buffer.addSnapshot(snapshot(30, 0.0D, 20.0F));
 
-        assertThrows(IllegalArgumentException.class, () -> buffer.addSnapshot(snapshot(29, 0.0D, 20.0F)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> buffer.addSnapshot(snapshot(29, 0.0D, 20.0F)));
     }
 
     @Test
@@ -76,7 +77,6 @@ class EntitySnapshotBufferTest {
                 Pose.STANDING,
                 new AABB(x, 2.0D, 3.0D, x + 1.0D, 4.0D, 4.0D),
                 true,
-                health
-        );
+                health);
     }
 }

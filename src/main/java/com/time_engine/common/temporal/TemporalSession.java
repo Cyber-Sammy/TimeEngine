@@ -17,8 +17,7 @@ public final class TemporalSession {
             int startTick,
             int durationTicks,
             float timeScale,
-            double radius
-    ) {
+            double radius) {
         if (durationTicks <= 0) {
             throw new IllegalArgumentException("durationTicks must be positive");
         }
@@ -72,6 +71,11 @@ public final class TemporalSession {
 
     public boolean isExpired(int currentServerTick) {
         return currentServerTick >= endTick();
+    }
+
+    public int minimumSnapshotHistoryTicks(int safetyMarginTicks) {
+        int maximumPerceptionDelay = (int) Math.ceil(durationTicks * (1.0D - timeScale));
+        return maximumPerceptionDelay + safetyMarginTicks;
     }
 
     void deactivate() {

@@ -1,17 +1,9 @@
 package com.time_engine.common.snapshot;
 
 import com.time_engine.common.temporal.TemporalSession;
-import com.time_engine.common.temporal.TemporalConstants;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.util.ModLog;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.phys.AABB;
-
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -21,6 +13,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.phys.AABB;
 
 public final class SnapshotManager {
     private static final SnapshotManager INSTANCE = new SnapshotManager();
@@ -28,8 +26,7 @@ public final class SnapshotManager {
     private final Map<UUID, EntitySnapshotBuffer> buffersByEntity = new HashMap<>();
     private int bufferCapacity;
 
-    private SnapshotManager() {
-    }
+    private SnapshotManager() {}
 
     public static SnapshotManager getInstance() {
         return INSTANCE;
@@ -42,7 +39,8 @@ public final class SnapshotManager {
             resetForCapacity(configuredCapacity);
         }
 
-        Collection<TemporalSession> activeSessions = TemporalSessionManager.getInstance().getActiveSessions();
+        Collection<TemporalSession> activeSessions =
+                TemporalSessionManager.getInstance().getActiveSessions();
         boolean snapshotPlayersAlways = TimeEngineConfig.snapshotPlayersAlways();
         Set<UUID> capturedEntityIds = new HashSet<>();
         if (snapshotPlayersAlways) {
@@ -57,18 +55,26 @@ public final class SnapshotManager {
                 if (!snapshotPlayersAlways) {
                     capture(owner, currentTick, capturedEntityIds);
                 }
-                captureNearbyEntities(owner, session.radius(), !snapshotPlayersAlways, currentTick, capturedEntityIds);
+                captureNearbyEntities(
+                        owner,
+                        session.radius(),
+                        !snapshotPlayersAlways,
+                        currentTick,
+                        capturedEntityIds);
             }
         }
 
         int oldestRetainedTick = currentTick - TimeEngineConfig.snapshotHistoryTicks();
-        buffersByEntity.values().removeIf(buffer -> buffer.latestRecordedTick() < oldestRetainedTick);
+        buffersByEntity
+                .values()
+                .removeIf(buffer -> buffer.latestRecordedTick() < oldestRetainedTick);
 
         if (!activeSessions.isEmpty() && currentTick % 100 == 0) {
             ModLog.diagnostic(
                     "Snapshot state at tick {}: captured={}, trackedBuffers={}",
-                    currentTick, capturedEntityIds.size(), buffersByEntity.size()
-            );
+                    currentTick,
+                    capturedEntityIds.size(),
+                    buffersByEntity.size());
         }
     }
 
@@ -86,18 +92,13 @@ public final class SnapshotManager {
         return buffersByEntity.size();
     }
 
-    public void validateConfiguration() {
-        int configuredHistory = TimeEngineConfig.snapshotHistoryTicks();
-        int recommendedHistory = recommendedHistoryTicks(
-                TimeEngineConfig.durationTicks(),
-                TimeEngineConfig.timeScale()
-        );
-        if (configuredHistory < recommendedHistory) {
-            ModLog.warn(
-                    "Snapshot history is {} ticks, but current duration and time scale require at least {} ticks",
-                    configuredHistory, recommendedHistory
-            );
+    public Optional<BufferStats> getBufferStats(UUID entityId) {
+        EntitySnapshotBuffer buffer = buffersByEntity.get(entityId);
+        if (buffer == null) {
+            return Optional.empty();
         }
+        return Optional.of(
+                new BufferStats(buffer.size(), buffer.capacity(), buffer.latestRecordedTick()));
     }
 
     public void clear() {
@@ -111,15 +112,17 @@ public final class SnapshotManager {
             double radius,
             boolean includePlayers,
             int currentTick,
-            Set<UUID> capturedEntityIds
-    ) {
+            Set<UUID> capturedEntityIds) {
         AABB searchBounds = owner.getBoundingBox().inflate(radius);
         double radiusSquared = radius * radius;
-        List<Entity> candidates = owner.serverLevel().getEntities(
-                owner,
-                searchBounds,
-                entity -> shouldTrack(entity, includePlayers) && entity.distanceToSqr(owner) <= radiusSquared
-        );
+        List<Entity> candidates =
+                owner.serverLevel()
+                        .getEntities(
+                                owner,
+                                searchBounds,
+                                entity ->
+                                        shouldTrack(entity, includePlayers)
+                                                && entity.distanceToSqr(owner) <= radiusSquared);
         candidates.sort(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner)));
 
         int limit = Math.min(candidates.size(), TimeEngineConfig.maxTrackedEntitiesPerSession());
@@ -134,7 +137,9 @@ public final class SnapshotManager {
         }
 
         buffersByEntity
-                .computeIfAbsent(entity.getUUID(), ignored -> new EntitySnapshotBuffer(entity.getUUID(), bufferCapacity))
+                .computeIfAbsent(
+                        entity.getUUID(),
+                        ignored -> new EntitySnapshotBuffer(entity.getUUID(), bufferCapacity))
                 .addSnapshot(EntitySnapshot.capture(entity, currentTick));
     }
 
@@ -142,20 +147,16 @@ public final class SnapshotManager {
         if (!buffersByEntity.isEmpty()) {
             ModLog.diagnostic(
                     "Snapshot history capacity changed from {} to {}; clearing existing history",
-                    bufferCapacity, configuredCapacity
-            );
+                    bufferCapacity,
+                    configuredCapacity);
             buffersByEntity.clear();
         }
         bufferCapacity = configuredCapacity;
     }
 
-    static int recommendedHistoryTicks(int durationTicks, double timeScale) {
-        int maximumDelay = (int) Math.ceil(durationTicks * (1.0D - timeScale));
-        return maximumDelay + TemporalConstants.SNAPSHOT_HISTORY_SAFETY_MARGIN_TICKS;
-    }
-
     private static boolean shouldTrack(Entity entity, boolean includePlayers) {
-        // TODO: Replace the MVP type list with an extensible tracking policy before supporting other temporal actors.
+        // TODO: Replace the MVP type list with an extensible tracking policy before supporting
+        // other temporal actors.
         if (entity.isRemoved()) {
             return false;
         }
@@ -163,4 +164,6 @@ public final class SnapshotManager {
                 || entity instanceof Projectile
                 || (includePlayers && entity instanceof ServerPlayer);
     }
+
+    public record BufferStats(int size, int capacity, int latestSnapshotTick) {}
 }

@@ -2,27 +2,26 @@ package com.time_engine.common.temporal;
 
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.util.ModLog;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.network.chat.Component;
-
-import java.util.HashMap;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 public final class TemporalSessionManager {
     private static final TemporalSessionManager INSTANCE = new TemporalSessionManager();
 
     private final Map<UUID, TemporalSession> sessionsByOwner = new HashMap<>();
     private final Map<UUID, Integer> cooldownEndTicks = new HashMap<>();
-    private final Collection<TemporalSession> activeSessions = Collections.unmodifiableCollection(sessionsByOwner.values());
+    private final Collection<TemporalSession> activeSessions =
+            Collections.unmodifiableCollection(sessionsByOwner.values());
 
-    private TemporalSessionManager() {
-    }
+    private TemporalSessionManager() {}
 
     public static TemporalSessionManager getInstance() {
         return INSTANCE;
@@ -36,19 +35,24 @@ public final class TemporalSessionManager {
             return false;
         }
 
-        TemporalSession session = new TemporalSession(
-                UUID.randomUUID(),
-                playerId,
-                currentTick,
-                TimeEngineConfig.durationTicks(),
-                TimeEngineConfig.timeScale(),
-                TimeEngineConfig.radius()
-        );
+        TemporalSession session =
+                new TemporalSession(
+                        UUID.randomUUID(),
+                        playerId,
+                        currentTick,
+                        TimeEngineConfig.durationTicks(),
+                        TimeEngineConfig.timeScale(),
+                        TimeEngineConfig.radius());
+        warnIfSnapshotHistoryIsTooShort(session);
         sessionsByOwner.put(playerId, session);
         ModLog.diagnostic(
                 "Started temporal session {} for player {} at tick {} (duration={}, scale={}, radius={})",
-                session.sessionId(), playerId, currentTick, session.durationTicks(), session.timeScale(), session.radius()
-        );
+                session.sessionId(),
+                playerId,
+                currentTick,
+                session.durationTicks(),
+                session.timeScale(),
+                session.radius());
         return true;
     }
 
@@ -57,7 +61,8 @@ public final class TemporalSessionManager {
     }
 
     public Optional<TemporalSession> getSession(ServerPlayer player) {
-        return Optional.ofNullable(sessionsByOwner.get(player.getUUID())).filter(TemporalSession::active);
+        return Optional.ofNullable(sessionsByOwner.get(player.getUUID()))
+                .filter(TemporalSession::active);
     }
 
     public boolean isActive(ServerPlayer player) {
@@ -89,12 +94,15 @@ public final class TemporalSessionManager {
             if (owner == null || session.isExpired(currentTick)) {
                 session.deactivate();
                 iterator.remove();
-                cooldownEndTicks.put(entry.getKey(), currentTick + TimeEngineConfig.cooldownTicks());
+                cooldownEndTicks.put(
+                        entry.getKey(), currentTick + TimeEngineConfig.cooldownTicks());
 
                 if (owner != null) {
-                    owner.displayClientMessage(Component.translatable("message.time_engine.temporal.expired"), true);
+                    owner.displayClientMessage(
+                            Component.translatable("message.time_engine.temporal.expired"), true);
                 }
-                ModLog.diagnostic("Ended temporal session {} at tick {}", session.sessionId(), currentTick);
+                ModLog.diagnostic(
+                        "Ended temporal session {} at tick {}", session.sessionId(), currentTick);
             }
         }
 
@@ -109,8 +117,8 @@ public final class TemporalSessionManager {
     public void clear() {
         ModLog.diagnostic(
                 "Clearing {} temporal sessions and {} cooldown entries",
-                sessionsByOwner.size(), cooldownEndTicks.size()
-        );
+                sessionsByOwner.size(),
+                cooldownEndTicks.size());
         sessionsByOwner.clear();
         cooldownEndTicks.clear();
     }
@@ -125,11 +133,27 @@ public final class TemporalSessionManager {
         if (applyCooldown) {
             cooldownEndTicks.put(ownerId, currentTick + TimeEngineConfig.cooldownTicks());
         }
-        ModLog.diagnostic("Stopped temporal session {} at tick {}", session.sessionId(), currentTick);
+        ModLog.diagnostic(
+                "Stopped temporal session {} at tick {}", session.sessionId(), currentTick);
         return true;
     }
 
     private int getCooldownTicksRemaining(ServerPlayer player, int currentTick) {
-        return Math.max(0, cooldownEndTicks.getOrDefault(player.getUUID(), currentTick) - currentTick);
+        return Math.max(
+                0, cooldownEndTicks.getOrDefault(player.getUUID(), currentTick) - currentTick);
+    }
+
+    private static void warnIfSnapshotHistoryIsTooShort(TemporalSession session) {
+        int configuredHistory = TimeEngineConfig.snapshotHistoryTicks();
+        int minimumHistory =
+                session.minimumSnapshotHistoryTicks(
+                        TemporalConstants.SNAPSHOT_HISTORY_SAFETY_MARGIN_TICKS);
+        if (configuredHistory < minimumHistory) {
+            ModLog.warn(
+                    "Starting temporal session {} with {} ticks of snapshot history; at least {} ticks are recommended",
+                    session.sessionId(),
+                    configuredHistory,
+                    minimumHistory);
+        }
     }
 }

@@ -7,8 +7,7 @@ import org.slf4j.Logger;
 public final class ModLog {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private ModLog() {
-    }
+    private ModLog() {}
 
     public static void diagnostic(String message, Object... arguments) {
         if (TimeEngineConfig.diagnosticLogging()) {
