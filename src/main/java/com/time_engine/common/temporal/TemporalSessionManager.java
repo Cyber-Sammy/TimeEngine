@@ -2,6 +2,7 @@ package com.time_engine.common.temporal;
 
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.util.ModLog;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -77,8 +78,13 @@ public final class TemporalSessionManager {
         return getCooldownTicksRemaining(player, player.getServer().getTickCount());
     }
 
-    public void tick(MinecraftServer server) {
+    public int getCooldownEndTick(ServerPlayer player) {
+        return cooldownEndTicks.getOrDefault(player.getUUID(), 0);
+    }
+
+    public Collection<ServerPlayer> tick(MinecraftServer server) {
         int currentTick = server.getTickCount();
+        Collection<ServerPlayer> expiredSessionOwners = new ArrayList<>();
         Iterator<Map.Entry<UUID, TemporalSession>> iterator = sessionsByOwner.entrySet().iterator();
 
         while (iterator.hasNext()) {
@@ -100,6 +106,7 @@ public final class TemporalSessionManager {
                 if (owner != null) {
                     owner.displayClientMessage(
                             Component.translatable("message.time_engine.temporal.expired"), true);
+                    expiredSessionOwners.add(owner);
                 }
                 ModLog.diagnostic(
                         "Ended temporal session {} at tick {}", session.sessionId(), currentTick);
@@ -107,6 +114,7 @@ public final class TemporalSessionManager {
         }
 
         cooldownEndTicks.entrySet().removeIf(entry -> entry.getValue() <= currentTick);
+        return expiredSessionOwners;
     }
 
     public double getPerceivedTick(TemporalSession session, int currentServerTick) {

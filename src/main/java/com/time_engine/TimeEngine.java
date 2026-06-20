@@ -1,5 +1,6 @@
 package com.time_engine;
 
+import com.time_engine.common.network.ModNetworking;
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.registry.ModItems;
 import net.minecraft.world.item.CreativeModeTabs;
@@ -18,6 +19,7 @@ public final class TimeEngine {
         modContainer.registerConfig(ModConfig.Type.COMMON, TimeEngineConfig.COMMON_SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, TimeEngineConfig.SERVER_SPEC);
         modEventBus.addListener(this::addCreativeTabContents);
+        modEventBus.addListener(ModNetworking::register);
     }
 
     private void addCreativeTabContents(BuildCreativeModeTabContentsEvent event) {
