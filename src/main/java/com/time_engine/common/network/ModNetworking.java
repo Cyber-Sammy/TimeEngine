@@ -1,6 +1,5 @@
 package com.time_engine.common.network;
 
-import com.time_engine.client.ClientTemporalState;
 import com.time_engine.common.temporal.TemporalActivationService;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ModNetworking {
-    private static final String PROTOCOL_VERSION = "1";
+    public static final String PROTOCOL_VERSION = "1";
 
     private ModNetworking() {}
 
@@ -22,12 +21,7 @@ public final class ModNetworking {
                 TemporalActivationRequestPayload.STREAM_CODEC,
                 ModNetworking::handleActivationRequest);
 
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            registrar.playToClient(
-                    TemporalStatePayload.TYPE,
-                    TemporalStatePayload.STREAM_CODEC,
-                    ModNetworking::handleTemporalState);
-        } else {
+        if (FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
             registrar.playToClient(
                     TemporalStatePayload.TYPE,
                     TemporalStatePayload.STREAM_CODEC,
@@ -55,9 +49,5 @@ public final class ModNetworking {
         if (context.player() instanceof ServerPlayer serverPlayer) {
             TemporalActivationService.toggle(serverPlayer);
         }
-    }
-
-    private static void handleTemporalState(TemporalStatePayload payload, IPayloadContext context) {
-        ClientTemporalState.apply(payload);
     }
 }

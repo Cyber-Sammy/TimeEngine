@@ -56,6 +56,12 @@ public final class ClientTemporalState {
     public static void reset() {
         active = false;
         sessionId = null;
+        serverTickAtSync = 0;
+        clientTickAtSync = 0L;
+        startTick = 0;
+        durationTicks = 0;
+        timeScale = 1.0F;
+        radius = 0.0D;
         cooldownEndTick = 0;
     }
 
