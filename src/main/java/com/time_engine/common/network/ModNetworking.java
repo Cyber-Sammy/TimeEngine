@@ -112,7 +112,7 @@ public final class ModNetworking {
                         result.success(),
                         result.message()));
         if (result.success()) {
-            sendState(serverPlayer);
+            serverPlayer.server.getPlayerList().getPlayers().forEach(ModNetworking::sendState);
         }
     }
 }
