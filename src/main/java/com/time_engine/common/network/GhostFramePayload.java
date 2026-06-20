@@ -2,10 +2,12 @@ package com.time_engine.common.network;
 
 import com.time_engine.TimeEngine;
 import com.time_engine.common.snapshot.EntitySnapshot;
+import com.time_engine.util.ModLog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -23,6 +25,13 @@ public record GhostFramePayload(
         List<GhostEntityState> entities)
         implements CustomPacketPayload {
     private static final int MAX_ENTITY_STATES = 2048;
+    private static final int MAX_POSE_NAME_LENGTH = 64;
+    private static final AtomicBoolean INVALID_POSE_LOGGED = new AtomicBoolean();
+
+    static final StreamCodec<FriendlyByteBuf, Pose> POSE_CODEC =
+            StreamCodec.of(
+                    (buffer, pose) -> buffer.writeUtf(pose.name(), MAX_POSE_NAME_LENGTH),
+                    GhostFramePayload::decodePose);
 
     public static final Type<GhostFramePayload> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(TimeEngine.MOD_ID, "ghost_frame"));
@@ -123,7 +132,7 @@ public record GhostFramePayload(
             buffer.writeDouble(position.z);
             buffer.writeFloat(yRot);
             buffer.writeFloat(xRot);
-            buffer.writeVarInt(pose.ordinal());
+            POSE_CODEC.encode(buffer, pose);
             buffer.writeDouble(boundingBox.minX);
             buffer.writeDouble(boundingBox.minY);
             buffer.writeDouble(boundingBox.minZ);
@@ -137,11 +146,7 @@ public record GhostFramePayload(
             Vec3 position = new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
             float yRot = buffer.readFloat();
             float xRot = buffer.readFloat();
-            int poseOrdinal = buffer.readVarInt();
-            Pose[] poses = Pose.values();
-            if (poseOrdinal < 0 || poseOrdinal >= poses.length) {
-                throw new IllegalArgumentException("Invalid ghost pose: " + poseOrdinal);
-            }
+            Pose pose = POSE_CODEC.decode(buffer);
             AABB boundingBox =
                     new AABB(
                             buffer.readDouble(),
@@ -150,8 +155,7 @@ public record GhostFramePayload(
                             buffer.readDouble(),
                             buffer.readDouble(),
                             buffer.readDouble());
-            return new GhostEntityState(
-                    entityId, position, yRot, xRot, poses[poseOrdinal], boundingBox);
+            return new GhostEntityState(entityId, position, yRot, xRot, pose, boundingBox);
         }
 
         private static float lerpRotation(float from, float to, double progress) {
@@ -166,6 +170,20 @@ public record GhostFramePayload(
                     Mth.lerp(progress, from.maxX, to.maxX),
                     Mth.lerp(progress, from.maxY, to.maxY),
                     Mth.lerp(progress, from.maxZ, to.maxZ));
+        }
+    }
+
+    private static Pose decodePose(FriendlyByteBuf buffer) {
+        String poseName = buffer.readUtf(MAX_POSE_NAME_LENGTH);
+        try {
+            return Pose.valueOf(poseName);
+        } catch (IllegalArgumentException exception) {
+            if (INVALID_POSE_LOGGED.compareAndSet(false, true)) {
+                ModLog.warn(
+                        "Received unknown ghost pose '{}'; falling back to STANDING. Further invalid poses will not be logged",
+                        poseName);
+            }
+            return Pose.STANDING;
         }
     }
 }

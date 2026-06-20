@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.time_engine.common.network.GhostFramePayload.GhostEntityState;
+import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.phys.AABB;
@@ -42,6 +44,33 @@ class GhostFramePayloadTest {
 
         assertEquals(1, payload.entities().size());
         assertThrows(UnsupportedOperationException.class, () -> payload.entities().clear());
+    }
+
+    @Test
+    void roundTripsSwimmingPose() {
+        assertEquals(Pose.SWIMMING, roundTrip(Pose.SWIMMING));
+    }
+
+    @Test
+    void roundTripsCrouchingPose() {
+        assertEquals(Pose.CROUCHING, roundTrip(Pose.CROUCHING));
+    }
+
+    @Test
+    void fallsBackToStandingForUnknownPose() {
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        buffer.writeUtf("UNKNOWN_FUTURE_POSE", 64);
+
+        assertEquals(Pose.STANDING, GhostFramePayload.POSE_CODEC.decode(buffer));
+        buffer.release();
+    }
+
+    private static Pose roundTrip(Pose pose) {
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        GhostFramePayload.POSE_CODEC.encode(buffer, pose);
+        Pose decoded = GhostFramePayload.POSE_CODEC.decode(buffer);
+        buffer.release();
+        return decoded;
     }
 
     private static GhostEntityState state(double x, float yRot) {
