@@ -1,7 +1,9 @@
 package com.time_engine.common.network;
 
+import com.time_engine.common.combat.TemporalCombatService;
 import com.time_engine.common.temporal.TemporalActivationService;
 import com.time_engine.common.temporal.TemporalSessionManager;
+import com.time_engine.config.TimeEngineConfig;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -10,7 +12,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ModNetworking {
-    public static final String PROTOCOL_VERSION = "2";
+    public static final String PROTOCOL_VERSION = "3";
 
     private ModNetworking() {}
 
@@ -20,6 +22,10 @@ public final class ModNetworking {
                 TemporalActivationRequestPayload.TYPE,
                 TemporalActivationRequestPayload.STREAM_CODEC,
                 ModNetworking::handleActivationRequest);
+        registrar.playToServer(
+                PhantomHitRequestPayload.TYPE,
+                PhantomHitRequestPayload.STREAM_CODEC,
+                ModNetworking::handlePhantomHitRequest);
 
         if (FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
             registrar
@@ -43,9 +49,16 @@ public final class ModNetworking {
                         .map(
                                 session ->
                                         TemporalStatePayload.active(
-                                                session, serverTick, cooldownEndTick))
+                                                session,
+                                                serverTick,
+                                                cooldownEndTick,
+                                                TimeEngineConfig.phantomAttackReach()))
                         .orElseGet(
-                                () -> TemporalStatePayload.inactive(serverTick, cooldownEndTick));
+                                () ->
+                                        TemporalStatePayload.inactive(
+                                                serverTick,
+                                                cooldownEndTick,
+                                                TimeEngineConfig.phantomAttackReach()));
         PacketDistributor.sendToPlayer(player, payload);
     }
 
@@ -53,6 +66,13 @@ public final class ModNetworking {
             TemporalActivationRequestPayload payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer serverPlayer) {
             TemporalActivationService.toggle(serverPlayer);
+        }
+    }
+
+    private static void handlePhantomHitRequest(
+            PhantomHitRequestPayload payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer serverPlayer) {
+            TemporalCombatService.getInstance().handle(serverPlayer, payload);
         }
     }
 }

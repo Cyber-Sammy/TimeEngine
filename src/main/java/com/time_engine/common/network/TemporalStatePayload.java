@@ -16,6 +16,7 @@ public record TemporalStatePayload(
         int durationTicks,
         float timeScale,
         double radius,
+        double phantomAttackReach,
         int cooldownEndTick)
         implements CustomPacketPayload {
     private static final UUID NO_SESSION = new UUID(0L, 0L);
@@ -26,7 +27,10 @@ public record TemporalStatePayload(
             StreamCodec.of(TemporalStatePayload::encode, TemporalStatePayload::decode);
 
     public static TemporalStatePayload active(
-            TemporalSession session, int serverTick, int cooldownEndTick) {
+            TemporalSession session,
+            int serverTick,
+            int cooldownEndTick,
+            double phantomAttackReach) {
         return new TemporalStatePayload(
                 true,
                 session.sessionId(),
@@ -35,12 +39,22 @@ public record TemporalStatePayload(
                 session.durationTicks(),
                 session.timeScale(),
                 session.radius(),
+                phantomAttackReach,
                 cooldownEndTick);
     }
 
-    public static TemporalStatePayload inactive(int serverTick, int cooldownEndTick) {
+    public static TemporalStatePayload inactive(
+            int serverTick, int cooldownEndTick, double phantomAttackReach) {
         return new TemporalStatePayload(
-                false, NO_SESSION, serverTick, 0, 0, 1.0F, 0.0D, cooldownEndTick);
+                false,
+                NO_SESSION,
+                serverTick,
+                0,
+                0,
+                1.0F,
+                0.0D,
+                phantomAttackReach,
+                cooldownEndTick);
     }
 
     private static void encode(FriendlyByteBuf buffer, TemporalStatePayload payload) {
@@ -51,6 +65,7 @@ public record TemporalStatePayload(
         buffer.writeVarInt(payload.durationTicks);
         buffer.writeFloat(payload.timeScale);
         buffer.writeDouble(payload.radius);
+        buffer.writeDouble(payload.phantomAttackReach);
         buffer.writeVarInt(payload.cooldownEndTick);
     }
 
@@ -62,6 +77,7 @@ public record TemporalStatePayload(
                 buffer.readVarInt(),
                 buffer.readVarInt(),
                 buffer.readFloat(),
+                buffer.readDouble(),
                 buffer.readDouble(),
                 buffer.readVarInt());
     }

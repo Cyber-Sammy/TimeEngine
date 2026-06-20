@@ -1,6 +1,7 @@
 package com.time_engine.common.temporal;
 
 import com.time_engine.TimeEngine;
+import com.time_engine.common.combat.TemporalCombatService;
 import com.time_engine.common.command.TemporalDebugCommands;
 import com.time_engine.common.network.GhostFrameBroadcaster;
 import com.time_engine.common.network.ModNetworking;
@@ -46,8 +47,14 @@ public final class TemporalServerEvents {
     }
 
     @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        TemporalCombatService.getInstance().clearPlayer(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         SnapshotManager.getInstance().clear();
         TemporalSessionManager.getInstance().clear();
+        TemporalCombatService.getInstance().clear();
     }
 }
