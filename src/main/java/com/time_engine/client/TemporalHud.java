@@ -14,7 +14,10 @@ public final class TemporalHud {
 
     public static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.options.hideGui || minecraft.player == null) {
+        if (minecraft.options.hideGui) {
+            return;
+        }
+        if (minecraft.player == null) {
             return;
         }
 

@@ -8,8 +8,10 @@ public final class TemporalConfigService {
     private TemporalConfigService() {}
 
     public static boolean canEdit(ServerPlayer player) {
-        return player.hasPermissions(2)
-                || player.getServer().isSingleplayerOwner(player.getGameProfile());
+        if (player.hasPermissions(2)) {
+            return true;
+        }
+        return player.getServer().isSingleplayerOwner(player.getGameProfile());
     }
 
     public static ApplyResult apply(ServerPlayer player, TemporalConfigSnapshot requested) {

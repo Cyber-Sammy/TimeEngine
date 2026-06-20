@@ -85,7 +85,10 @@ public record EntitySnapshot(
     }
 
     private float interpolateHealth(EntitySnapshot next, double progress) {
-        if (!hasHealth() || !next.hasHealth()) {
+        if (!hasHealth()) {
+            return progress < 1.0D ? health : next.health;
+        }
+        if (!next.hasHealth()) {
             return progress < 1.0D ? health : next.health;
         }
         return (float) Mth.lerp(progress, health, next.health);
