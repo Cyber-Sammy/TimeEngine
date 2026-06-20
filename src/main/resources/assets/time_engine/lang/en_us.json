@@ -3,5 +3,9 @@
   "message.time_engine.temporal.started": "Temporal overdrive active for %s seconds",
   "message.time_engine.temporal.stopped": "Temporal overdrive stopped",
   "message.time_engine.temporal.expired": "Temporal overdrive expired",
-  "message.time_engine.temporal.cooldown": "Temporal overdrive cooling down: %s ticks"
+  "message.time_engine.temporal.cooldown": "Temporal overdrive cooling down: %s ticks",
+  "key.categories.time_engine": "Time Engine",
+  "key.time_engine.activate": "Toggle temporal overdrive",
+  "hud.time_engine.active": "TEMPORAL ACTIVE  %ss  x%s",
+  "hud.time_engine.cooldown": "TEMPORAL COOLDOWN  %ss"
 }
