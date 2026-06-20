@@ -13,12 +13,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 public final class SnapshotManager {
     private static final SnapshotManager INSTANCE = new SnapshotManager();
@@ -86,6 +89,28 @@ public final class SnapshotManager {
     public Optional<EntitySnapshot> getInterpolatedSnapshot(UUID entityId, double serverTick) {
         EntitySnapshotBuffer buffer = buffersByEntity.get(entityId);
         return buffer == null ? Optional.empty() : buffer.getInterpolatedSnapshot(serverTick);
+    }
+
+    public List<EntitySnapshot> getInterpolatedSnapshots(
+            ResourceKey<Level> dimension,
+            Vec3 center,
+            double radius,
+            double serverTick,
+            UUID excludedEntityId,
+            int limit) {
+        double radiusSquared = radius * radius;
+        return buffersByEntity.values().stream()
+                .filter(buffer -> !buffer.entityId().equals(excludedEntityId))
+                .map(buffer -> buffer.getInterpolatedSnapshot(serverTick))
+                .flatMap(Optional::stream)
+                .filter(EntitySnapshot::alive)
+                .filter(snapshot -> snapshot.dimension().equals(dimension))
+                .filter(snapshot -> snapshot.position().distanceToSqr(center) <= radiusSquared)
+                .sorted(
+                        Comparator.comparingDouble(
+                                snapshot -> snapshot.position().distanceToSqr(center)))
+                .limit(limit)
+                .toList();
     }
 
     public int trackedEntityCount() {
