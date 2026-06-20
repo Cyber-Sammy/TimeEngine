@@ -14,6 +14,7 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.DoubleValue RADIUS;
     public static final ModConfigSpec.IntValue SNAPSHOT_HISTORY_TICKS;
     public static final ModConfigSpec.IntValue MAX_TRACKED_ENTITIES_PER_SESSION;
+    public static final ModConfigSpec.BooleanValue SNAPSHOT_PLAYERS_ALWAYS;
 
     static {
         ModConfigSpec.Builder commonBuilder = new ModConfigSpec.Builder();
@@ -45,8 +46,11 @@ public final class TimeEngineConfig {
                 .comment("Length of retained entity history in server ticks. 20 ticks = 1 second.")
                 .defineInRange("historyTicks", 20 * 10, 20, 20 * 60 * 10);
         MAX_TRACKED_ENTITIES_PER_SESSION = serverBuilder
-                .comment("Maximum nearby mobs and projectiles captured per active temporal session.")
+                .comment("Maximum nearby entities captured per active temporal session.")
                 .defineInRange("maxTrackedEntitiesPerSession", 128, 1, 2048);
+        SNAPSHOT_PLAYERS_ALWAYS = serverBuilder
+                .comment("Keep bounded snapshot history for online players even when no temporal session is active.")
+                .define("snapshotPlayersAlways", true);
         serverBuilder.pop();
         SERVER_SPEC = serverBuilder.build();
     }
@@ -80,5 +84,9 @@ public final class TimeEngineConfig {
 
     public static int maxTrackedEntitiesPerSession() {
         return MAX_TRACKED_ENTITIES_PER_SESSION.get();
+    }
+
+    public static boolean snapshotPlayersAlways() {
+        return SNAPSHOT_PLAYERS_ALWAYS.get();
     }
 }

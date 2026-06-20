@@ -5,6 +5,7 @@ import com.time_engine.common.snapshot.SnapshotManager;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = TimeEngine.MOD_ID)
@@ -16,6 +17,11 @@ public final class TemporalServerEvents {
     public static void onServerTick(ServerTickEvent.Post event) {
         TemporalSessionManager.getInstance().tick(event.getServer());
         SnapshotManager.getInstance().tick(event.getServer());
+    }
+
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        SnapshotManager.getInstance().validateConfiguration();
     }
 
     @SubscribeEvent
