@@ -3,6 +3,7 @@ package com.time_engine.client;
 import com.time_engine.TimeEngine;
 import com.time_engine.common.network.GhostFramePayload;
 import com.time_engine.common.network.ModNetworking;
+import com.time_engine.common.network.TemporalConfigPayload;
 import com.time_engine.common.network.TemporalStatePayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -24,7 +25,11 @@ public final class ClientNetworking {
                 .playToClient(
                         GhostFramePayload.TYPE,
                         GhostFramePayload.STREAM_CODEC,
-                        ClientNetworking::handleGhostFrame);
+                        ClientNetworking::handleGhostFrame)
+                .playToClient(
+                        TemporalConfigPayload.TYPE,
+                        TemporalConfigPayload.STREAM_CODEC,
+                        ClientNetworking::handleTemporalConfig);
     }
 
     private static void handleTemporalState(TemporalStatePayload payload, IPayloadContext context) {
@@ -36,5 +41,10 @@ public final class ClientNetworking {
 
     private static void handleGhostFrame(GhostFramePayload payload, IPayloadContext context) {
         ClientGhostState.apply(payload);
+    }
+
+    private static void handleTemporalConfig(
+            TemporalConfigPayload payload, IPayloadContext context) {
+        TemporalConfigScreen.receive(payload);
     }
 }

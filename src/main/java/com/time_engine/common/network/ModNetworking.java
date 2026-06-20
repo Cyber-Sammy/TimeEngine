@@ -3,6 +3,8 @@ package com.time_engine.common.network;
 import com.time_engine.common.combat.TemporalCombatService;
 import com.time_engine.common.temporal.TemporalActivationService;
 import com.time_engine.common.temporal.TemporalSessionManager;
+import com.time_engine.config.TemporalConfigService;
+import com.time_engine.config.TemporalConfigSnapshot;
 import com.time_engine.config.TimeEngineConfig;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
@@ -12,7 +14,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ModNetworking {
-    public static final String PROTOCOL_VERSION = "3";
+    public static final String PROTOCOL_VERSION = "4";
 
     private ModNetworking() {}
 
@@ -26,6 +28,10 @@ public final class ModNetworking {
                 PhantomHitRequestPayload.TYPE,
                 PhantomHitRequestPayload.STREAM_CODEC,
                 ModNetworking::handlePhantomHitRequest);
+        registrar.playToServer(
+                TemporalConfigUpdateRequestPayload.TYPE,
+                TemporalConfigUpdateRequestPayload.STREAM_CODEC,
+                ModNetworking::handleConfigUpdateRequest);
 
         if (FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
             registrar
@@ -36,6 +42,10 @@ public final class ModNetworking {
                     .playToClient(
                             GhostFramePayload.TYPE,
                             GhostFramePayload.STREAM_CODEC,
+                            (payload, context) -> {})
+                    .playToClient(
+                            TemporalConfigPayload.TYPE,
+                            TemporalConfigPayload.STREAM_CODEC,
                             (payload, context) -> {});
         }
     }
@@ -62,6 +72,16 @@ public final class ModNetworking {
         PacketDistributor.sendToPlayer(player, payload);
     }
 
+    public static void sendConfigScreen(ServerPlayer player, boolean success, String message) {
+        PacketDistributor.sendToPlayer(
+                player,
+                new TemporalConfigPayload(
+                        TemporalConfigSnapshot.current(),
+                        TemporalConfigSnapshot.defaults(),
+                        success,
+                        message));
+    }
+
     private static void handleActivationRequest(
             TemporalActivationRequestPayload payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer serverPlayer) {
@@ -73,6 +93,26 @@ public final class ModNetworking {
             PhantomHitRequestPayload payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer serverPlayer) {
             TemporalCombatService.getInstance().handle(serverPlayer, payload);
+        }
+    }
+
+    private static void handleConfigUpdateRequest(
+            TemporalConfigUpdateRequestPayload payload, IPayloadContext context) {
+        if (!(context.player() instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        TemporalConfigService.ApplyResult result =
+                TemporalConfigService.apply(serverPlayer, payload.requested());
+        PacketDistributor.sendToPlayer(
+                serverPlayer,
+                new TemporalConfigPayload(
+                        result.snapshot(),
+                        TemporalConfigSnapshot.defaults(),
+                        result.success(),
+                        result.message()));
+        if (result.success()) {
+            sendState(serverPlayer);
         }
     }
 }
