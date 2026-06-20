@@ -13,6 +13,7 @@ public final class ClientTemporalState {
     private static int durationTicks;
     private static float timeScale = 1.0F;
     private static double radius;
+    private static double phantomAttackReach;
     private static int cooldownEndTick;
 
     private ClientTemporalState() {}
@@ -26,6 +27,7 @@ public final class ClientTemporalState {
         durationTicks = payload.durationTicks();
         timeScale = payload.timeScale();
         radius = payload.radius();
+        phantomAttackReach = payload.phantomAttackReach();
         cooldownEndTick = payload.cooldownEndTick();
     }
 
@@ -53,6 +55,10 @@ public final class ClientTemporalState {
         return sessionId;
     }
 
+    public static double phantomAttackReach() {
+        return phantomAttackReach;
+    }
+
     public static void reset() {
         active = false;
         sessionId = null;
@@ -62,6 +68,7 @@ public final class ClientTemporalState {
         durationTicks = 0;
         timeScale = 1.0F;
         radius = 0.0D;
+        phantomAttackReach = 0.0D;
         cooldownEndTick = 0;
     }
 

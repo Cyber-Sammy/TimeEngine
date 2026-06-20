@@ -16,6 +16,9 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.IntValue MAX_TRACKED_ENTITIES_PER_SESSION;
     public static final ModConfigSpec.BooleanValue SNAPSHOT_PLAYERS_ALWAYS;
     public static final ModConfigSpec.IntValue GHOST_FRAME_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue PHANTOM_ATTACK_REACH;
+    public static final ModConfigSpec.DoubleValue PHANTOM_DAMAGE_MULTIPLIER;
+    public static final ModConfigSpec.IntValue PHANTOM_ATTACK_COOLDOWN_TICKS;
 
     static {
         ModConfigSpec.Builder commonBuilder = new ModConfigSpec.Builder();
@@ -85,6 +88,21 @@ public final class TimeEngineConfig {
                                 "Interval between ghost frame packets in server ticks. Lower values are smoother but use more bandwidth.")
                         .defineInRange("ghostFrameIntervalTicks", 2, 1, 20);
         serverBuilder.pop();
+
+        serverBuilder.push("phantomCombat");
+        PHANTOM_ATTACK_REACH =
+                serverBuilder
+                        .comment("Maximum distance for server-validated phantom attacks.")
+                        .defineInRange("phantomAttackReach", 4.5D, 1.0D, 16.0D);
+        PHANTOM_DAMAGE_MULTIPLIER =
+                serverBuilder
+                        .comment("Multiplier applied to the attacker's base attack damage.")
+                        .defineInRange("phantomDamageMultiplier", 1.0D, 0.0D, 10.0D);
+        PHANTOM_ATTACK_COOLDOWN_TICKS =
+                serverBuilder
+                        .comment("Minimum ticks between successful phantom attacks.")
+                        .defineInRange("phantomAttackCooldownTicks", 10, 1, 200);
+        serverBuilder.pop();
         SERVER_SPEC = serverBuilder.build();
     }
 
@@ -124,5 +142,17 @@ public final class TimeEngineConfig {
 
     public static int ghostFrameIntervalTicks() {
         return GHOST_FRAME_INTERVAL_TICKS.get();
+    }
+
+    public static double phantomAttackReach() {
+        return PHANTOM_ATTACK_REACH.get();
+    }
+
+    public static float phantomDamageMultiplier() {
+        return PHANTOM_DAMAGE_MULTIPLIER.get().floatValue();
+    }
+
+    public static int phantomAttackCooldownTicks() {
+        return PHANTOM_ATTACK_COOLDOWN_TICKS.get();
     }
 }
