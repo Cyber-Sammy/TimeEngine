@@ -1,6 +1,7 @@
 package com.time_engine.common.snapshot;
 
 import com.time_engine.common.temporal.TemporalSession;
+import com.time_engine.common.temporal.TemporalConstants;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.util.ModLog;
@@ -41,16 +42,22 @@ public final class SnapshotManager {
             resetForCapacity(configuredCapacity);
         }
 
+        Collection<TemporalSession> activeSessions = TemporalSessionManager.getInstance().getActiveSessions();
+        boolean snapshotPlayersAlways = TimeEngineConfig.snapshotPlayersAlways();
         Set<UUID> capturedEntityIds = new HashSet<>();
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            capture(player, currentTick, capturedEntityIds);
+        if (snapshotPlayersAlways) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                capture(player, currentTick, capturedEntityIds);
+            }
         }
 
-        Collection<TemporalSession> activeSessions = TemporalSessionManager.getInstance().getActiveSessions();
         for (TemporalSession session : activeSessions) {
             ServerPlayer owner = server.getPlayerList().getPlayer(session.ownerPlayerId());
             if (owner != null) {
-                captureNearbyEntities(owner, session.radius(), currentTick, capturedEntityIds);
+                if (!snapshotPlayersAlways) {
+                    capture(owner, currentTick, capturedEntityIds);
+                }
+                captureNearbyEntities(owner, session.radius(), !snapshotPlayersAlways, currentTick, capturedEntityIds);
             }
         }
 
@@ -79,6 +86,20 @@ public final class SnapshotManager {
         return buffersByEntity.size();
     }
 
+    public void validateConfiguration() {
+        int configuredHistory = TimeEngineConfig.snapshotHistoryTicks();
+        int recommendedHistory = recommendedHistoryTicks(
+                TimeEngineConfig.durationTicks(),
+                TimeEngineConfig.timeScale()
+        );
+        if (configuredHistory < recommendedHistory) {
+            ModLog.warn(
+                    "Snapshot history is {} ticks, but current duration and time scale require at least {} ticks",
+                    configuredHistory, recommendedHistory
+            );
+        }
+    }
+
     public void clear() {
         ModLog.diagnostic("Clearing {} entity snapshot buffers", buffersByEntity.size());
         buffersByEntity.clear();
@@ -88,6 +109,7 @@ public final class SnapshotManager {
     private void captureNearbyEntities(
             ServerPlayer owner,
             double radius,
+            boolean includePlayers,
             int currentTick,
             Set<UUID> capturedEntityIds
     ) {
@@ -96,7 +118,7 @@ public final class SnapshotManager {
         List<Entity> candidates = owner.serverLevel().getEntities(
                 owner,
                 searchBounds,
-                entity -> shouldTrack(entity) && entity.distanceToSqr(owner) <= radiusSquared
+                entity -> shouldTrack(entity, includePlayers) && entity.distanceToSqr(owner) <= radiusSquared
         );
         candidates.sort(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner)));
 
@@ -127,7 +149,18 @@ public final class SnapshotManager {
         bufferCapacity = configuredCapacity;
     }
 
-    private static boolean shouldTrack(Entity entity) {
-        return !entity.isRemoved() && (entity instanceof Mob || entity instanceof Projectile);
+    static int recommendedHistoryTicks(int durationTicks, double timeScale) {
+        int maximumDelay = (int) Math.ceil(durationTicks * (1.0D - timeScale));
+        return maximumDelay + TemporalConstants.SNAPSHOT_HISTORY_SAFETY_MARGIN_TICKS;
+    }
+
+    private static boolean shouldTrack(Entity entity, boolean includePlayers) {
+        // TODO: Replace the MVP type list with an extensible tracking policy before supporting other temporal actors.
+        if (entity.isRemoved()) {
+            return false;
+        }
+        return entity instanceof Mob
+                || entity instanceof Projectile
+                || (includePlayers && entity instanceof ServerPlayer);
     }
 }
