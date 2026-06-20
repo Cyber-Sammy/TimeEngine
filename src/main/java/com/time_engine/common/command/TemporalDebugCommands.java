@@ -3,9 +3,11 @@ package com.time_engine.common.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.time_engine.common.network.ModNetworking;
 import com.time_engine.common.snapshot.SnapshotManager;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.common.temporal.TemporalSessionManager;
+import com.time_engine.config.TemporalConfigService;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.commands.CommandSourceStack;
@@ -19,7 +21,7 @@ public final class TemporalDebugCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         LiteralArgumentBuilder<CommandSourceStack> root =
-                Commands.literal("timeengine").requires(source -> source.hasPermission(2));
+                Commands.literal("timeengine").requires(TemporalDebugCommands::canUseCommands);
         root.then(
                 Commands.literal("session").executes(context -> showSession(context.getSource())));
         root.then(
@@ -32,7 +34,19 @@ public final class TemporalDebugCommands {
                                                                 context.getSource(),
                                                                 EntityArgument.getPlayer(
                                                                         context, "player")))));
+        root.then(Commands.literal("config").executes(context -> openConfig(context.getSource())));
         dispatcher.register(root);
+    }
+
+    private static int openConfig(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        if (!TemporalConfigService.canEdit(player)) {
+            source.sendFailure(Component.literal("Time Engine: permission level 2 is required"));
+            return 0;
+        }
+
+        ModNetworking.sendConfigScreen(player, true, "Loaded server configuration");
+        return 1;
     }
 
     private static int showSession(CommandSourceStack source) throws CommandSyntaxException {
@@ -108,5 +122,11 @@ public final class TemporalDebugCommands {
     private static void sendSuccess(CommandSourceStack source, String format, Object... arguments) {
         Component message = Component.literal(String.format(Locale.ROOT, format, arguments));
         source.sendSuccess(() -> message, false);
+    }
+
+    private static boolean canUseCommands(CommandSourceStack source) {
+        return source.hasPermission(2)
+                || source.getEntity() instanceof ServerPlayer player
+                        && TemporalConfigService.canEdit(player);
     }
 }

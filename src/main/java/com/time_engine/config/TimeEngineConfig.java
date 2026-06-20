@@ -27,7 +27,9 @@ public final class TimeEngineConfig {
         DIAGNOSTIC_LOGGING =
                 commonBuilder
                         .comment("Enable diagnostic Time Engine lifecycle logs.")
-                        .define("diagnosticLogging", false);
+                        .define(
+                                "diagnosticLogging",
+                                TemporalConfigSnapshot.defaults().diagnosticLogging());
         commonBuilder.pop();
         COMMON_SPEC = commonBuilder.build();
 
@@ -40,16 +42,16 @@ public final class TimeEngineConfig {
                         .defineInRange(
                                 "durationTicks",
                                 TemporalConstants.DEFAULT_DURATION_TICKS,
-                                1,
-                                20 * 60 * 10);
+                                TemporalConfigSnapshot.MIN_DURATION_TICKS,
+                                TemporalConfigSnapshot.MAX_DURATION_TICKS);
         COOLDOWN_TICKS =
                 serverBuilder
                         .comment("Cooldown after a temporal session ends, in server ticks.")
                         .defineInRange(
                                 "cooldownTicks",
                                 TemporalConstants.DEFAULT_COOLDOWN_TICKS,
-                                0,
-                                20 * 60 * 60);
+                                TemporalConfigSnapshot.MIN_COOLDOWN_TICKS,
+                                TemporalConfigSnapshot.MAX_COOLDOWN_TICKS);
         TIME_SCALE =
                 serverBuilder
                         .comment(
@@ -57,12 +59,16 @@ public final class TimeEngineConfig {
                         .defineInRange(
                                 "timeScale",
                                 (double) TemporalConstants.DEFAULT_TIME_SCALE,
-                                0.01D,
-                                1.0D);
+                                TemporalConfigSnapshot.MIN_TIME_SCALE,
+                                TemporalConfigSnapshot.MAX_TIME_SCALE);
         RADIUS =
                 serverBuilder
                         .comment("Entity tracking radius for a temporal session, in blocks.")
-                        .defineInRange("radius", TemporalConstants.DEFAULT_RADIUS, 1.0D, 256.0D);
+                        .defineInRange(
+                                "radius",
+                                TemporalConstants.DEFAULT_RADIUS,
+                                TemporalConfigSnapshot.MIN_RADIUS,
+                                TemporalConfigSnapshot.MAX_RADIUS);
         serverBuilder.pop();
 
         serverBuilder.push("snapshots");
@@ -70,16 +76,26 @@ public final class TimeEngineConfig {
                 serverBuilder
                         .comment(
                                 "Length of retained entity history in server ticks. 20 ticks = 1 second.")
-                        .defineInRange("historyTicks", 20 * 10, 20, 20 * 60 * 10);
+                        .defineInRange(
+                                "historyTicks",
+                                TemporalConfigSnapshot.defaults().snapshotHistoryTicks(),
+                                TemporalConfigSnapshot.MIN_HISTORY_TICKS,
+                                TemporalConfigSnapshot.MAX_HISTORY_TICKS);
         MAX_TRACKED_ENTITIES_PER_SESSION =
                 serverBuilder
                         .comment("Maximum nearby entities captured per active temporal session.")
-                        .defineInRange("maxTrackedEntitiesPerSession", 128, 1, 2048);
+                        .defineInRange(
+                                "maxTrackedEntitiesPerSession",
+                                TemporalConfigSnapshot.defaults().maxTrackedEntities(),
+                                TemporalConfigSnapshot.MIN_TRACKED_ENTITIES,
+                                TemporalConfigSnapshot.MAX_TRACKED_ENTITIES);
         SNAPSHOT_PLAYERS_ALWAYS =
                 serverBuilder
                         .comment(
                                 "Keep bounded snapshot history for online players even when no temporal session is active.")
-                        .define("snapshotPlayersAlways", true);
+                        .define(
+                                "snapshotPlayersAlways",
+                                TemporalConfigSnapshot.defaults().snapshotPlayersAlways());
         serverBuilder.pop();
 
         serverBuilder.push("networking");
@@ -87,27 +103,47 @@ public final class TimeEngineConfig {
                 serverBuilder
                         .comment(
                                 "Interval between ghost frame packets in server ticks. Lower values are smoother but use more bandwidth.")
-                        .defineInRange("ghostFrameIntervalTicks", 2, 1, 20);
+                        .defineInRange(
+                                "ghostFrameIntervalTicks",
+                                TemporalConfigSnapshot.defaults().ghostFrameIntervalTicks(),
+                                TemporalConfigSnapshot.MIN_GHOST_FRAME_INTERVAL,
+                                TemporalConfigSnapshot.MAX_GHOST_FRAME_INTERVAL);
         serverBuilder.pop();
 
         serverBuilder.push("phantomCombat");
         PHANTOM_ATTACK_REACH =
                 serverBuilder
                         .comment("Maximum distance for server-validated phantom attacks.")
-                        .defineInRange("phantomAttackReach", 4.5D, 1.0D, 16.0D);
+                        .defineInRange(
+                                "phantomAttackReach",
+                                TemporalConfigSnapshot.defaults().phantomAttackReach(),
+                                TemporalConfigSnapshot.MIN_ATTACK_REACH,
+                                TemporalConfigSnapshot.MAX_ATTACK_REACH);
         PHANTOM_DAMAGE_MULTIPLIER =
                 serverBuilder
                         .comment("Multiplier applied to the attacker's base attack damage.")
-                        .defineInRange("phantomDamageMultiplier", 1.0D, 0.0D, 10.0D);
+                        .defineInRange(
+                                "phantomDamageMultiplier",
+                                TemporalConfigSnapshot.defaults().phantomDamageMultiplier(),
+                                TemporalConfigSnapshot.MIN_DAMAGE_MULTIPLIER,
+                                TemporalConfigSnapshot.MAX_DAMAGE_MULTIPLIER);
         PHANTOM_ATTACK_COOLDOWN_TICKS =
                 serverBuilder
                         .comment("Minimum ticks between successful phantom attacks.")
-                        .defineInRange("phantomAttackCooldownTicks", 10, 1, 200);
+                        .defineInRange(
+                                "phantomAttackCooldownTicks",
+                                TemporalConfigSnapshot.defaults().phantomAttackCooldownTicks(),
+                                TemporalConfigSnapshot.MIN_ATTACK_COOLDOWN_TICKS,
+                                TemporalConfigSnapshot.MAX_ATTACK_COOLDOWN_TICKS);
         PHANTOM_ALLOWED_HIT_TICK_DRIFT =
                 serverBuilder
                         .comment(
                                 "Maximum difference in perceived ticks between the client's rendered ghost frame and the server timeline.")
-                        .defineInRange("phantomAllowedHitTickDrift", 3.0D, 0.0D, 20.0D);
+                        .defineInRange(
+                                "phantomAllowedHitTickDrift",
+                                TemporalConfigSnapshot.defaults().phantomAllowedHitTickDrift(),
+                                TemporalConfigSnapshot.MIN_HIT_TICK_DRIFT,
+                                TemporalConfigSnapshot.MAX_HIT_TICK_DRIFT);
         serverBuilder.pop();
         SERVER_SPEC = serverBuilder.build();
     }
