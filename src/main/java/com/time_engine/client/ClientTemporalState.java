@@ -32,7 +32,10 @@ public final class ClientTemporalState {
     }
 
     public static boolean isActive() {
-        return active && estimatedServerTick() < startTick + durationTicks;
+        if (!active) {
+            return false;
+        }
+        return estimatedServerTick() < startTick + durationTicks;
     }
 
     public static int activeTicksRemaining() {

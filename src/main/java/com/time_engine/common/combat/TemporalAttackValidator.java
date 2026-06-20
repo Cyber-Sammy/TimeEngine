@@ -39,21 +39,22 @@ public final class TemporalAttackValidator {
         }
 
         Entity target = attacker.serverLevel().getEntity(targetEntityId);
-        if (target == null || target == attacker) {
+        if (target == null) {
             return ValidationResult.rejected(RejectionReason.TARGET_NOT_FOUND);
         }
-        if (!target.isAlive() || !target.isAttackable()) {
+        if (target == attacker) {
+            return ValidationResult.rejected(RejectionReason.TARGET_NOT_FOUND);
+        }
+        if (!target.isAlive()) {
+            return ValidationResult.rejected(RejectionReason.TARGET_NOT_ATTACKABLE);
+        }
+        if (!target.isAttackable()) {
             return ValidationResult.rejected(RejectionReason.TARGET_NOT_ATTACKABLE);
         }
 
         TemporalSession session = sessionResult.orElseThrow();
         double serverPerceivedTick = sessionManager.getPerceivedTick(session, serverTick);
-        if (clientPerceivedTick < session.startTick()
-                || clientPerceivedTick > session.endTick()
-                || !isPerceivedTickWithinDrift(
-                        clientPerceivedTick,
-                        serverPerceivedTick,
-                        TimeEngineConfig.phantomAllowedHitTickDrift())) {
+        if (!isValidClientTick(session, clientPerceivedTick, serverPerceivedTick)) {
             return ValidationResult.rejected(RejectionReason.INVALID_CLIENT_TICK);
         }
         Optional<EntitySnapshot> snapshotResult =
@@ -64,7 +65,10 @@ public final class TemporalAttackValidator {
         }
 
         EntitySnapshot snapshot = snapshotResult.orElseThrow();
-        if (!snapshot.dimension().equals(attacker.level().dimension()) || !snapshot.alive()) {
+        if (!snapshot.dimension().equals(attacker.level().dimension())) {
+            return ValidationResult.rejected(RejectionReason.INVALID_SNAPSHOT);
+        }
+        if (!snapshot.alive()) {
             return ValidationResult.rejected(RejectionReason.INVALID_SNAPSHOT);
         }
 
@@ -103,10 +107,30 @@ public final class TemporalAttackValidator {
 
     static boolean isPerceivedTickWithinDrift(
             double clientPerceivedTick, double serverPerceivedTick, double allowedDrift) {
-        return Double.isFinite(clientPerceivedTick)
-                && Double.isFinite(serverPerceivedTick)
-                && allowedDrift >= 0.0D
-                && Math.abs(clientPerceivedTick - serverPerceivedTick) <= allowedDrift;
+        if (!Double.isFinite(clientPerceivedTick)) {
+            return false;
+        }
+        if (!Double.isFinite(serverPerceivedTick)) {
+            return false;
+        }
+        if (allowedDrift < 0.0D) {
+            return false;
+        }
+        return Math.abs(clientPerceivedTick - serverPerceivedTick) <= allowedDrift;
+    }
+
+    private static boolean isValidClientTick(
+            TemporalSession session, double clientPerceivedTick, double serverPerceivedTick) {
+        if (clientPerceivedTick < session.startTick()) {
+            return false;
+        }
+        if (clientPerceivedTick > session.endTick()) {
+            return false;
+        }
+        return isPerceivedTickWithinDrift(
+                clientPerceivedTick,
+                serverPerceivedTick,
+                TimeEngineConfig.phantomAllowedHitTickDrift());
     }
 
     public enum RejectionReason {

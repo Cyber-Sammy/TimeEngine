@@ -16,7 +16,7 @@ public final class ClientGameEvents {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.level == null) {
+        if (!hasActiveWorld(minecraft)) {
             ClientTemporalState.reset();
             ClientGhostState.clear();
             return;
@@ -35,8 +35,19 @@ public final class ClientGameEvents {
     @SubscribeEvent
     public static void onInteractionKeyMappingTriggered(
             InputEvent.InteractionKeyMappingTriggered event) {
-        if (event.isAttack() && ClientGhostTargeting.tryAttackNearestGhost()) {
-            event.setCanceled(true);
+        if (!event.isAttack()) {
+            return;
         }
+        if (!ClientGhostTargeting.tryAttackNearestGhost()) {
+            return;
+        }
+        event.setCanceled(true);
+    }
+
+    private static boolean hasActiveWorld(Minecraft minecraft) {
+        if (minecraft.player == null) {
+            return false;
+        }
+        return minecraft.level != null;
     }
 }

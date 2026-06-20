@@ -23,7 +23,7 @@ public final class EntitySnapshotBuffer {
         if (!entityId.equals(snapshot.entityId())) {
             throw new IllegalArgumentException("Snapshot entity does not match this buffer");
         }
-        if (latestRecordedTick != Integer.MIN_VALUE && snapshot.serverTick() < latestRecordedTick) {
+        if (isBeforeLatestSnapshot(snapshot)) {
             throw new IllegalArgumentException("Snapshots must be added in server tick order");
         }
 
@@ -38,7 +38,10 @@ public final class EntitySnapshotBuffer {
 
     public Optional<EntitySnapshot> getSnapshotAtTick(int serverTick) {
         EntitySnapshot snapshot = snapshots[indexFor(serverTick)];
-        if (snapshot == null || snapshot.serverTick() != serverTick) {
+        if (snapshot == null) {
+            return Optional.empty();
+        }
+        if (snapshot.serverTick() != serverTick) {
             return Optional.empty();
         }
         return Optional.of(snapshot);
@@ -57,10 +60,13 @@ public final class EntitySnapshotBuffer {
         }
 
         Optional<EntitySnapshot> upper = getSnapshotAtTick(upperTick);
-        if (lower.isPresent() && upper.isPresent()) {
-            return Optional.of(lower.get().interpolate(upper.get(), serverTick - lowerTick));
+        if (lower.isEmpty()) {
+            return upper;
         }
-        return lower.or(() -> upper);
+        if (upper.isEmpty()) {
+            return lower;
+        }
+        return Optional.of(lower.get().interpolate(upper.get(), serverTick - lowerTick));
     }
 
     public UUID entityId() {
@@ -81,5 +87,12 @@ public final class EntitySnapshotBuffer {
 
     private int indexFor(int serverTick) {
         return Math.floorMod(serverTick, snapshots.length);
+    }
+
+    private boolean isBeforeLatestSnapshot(EntitySnapshot snapshot) {
+        if (latestRecordedTick == Integer.MIN_VALUE) {
+            return false;
+        }
+        return snapshot.serverTick() < latestRecordedTick;
     }
 }

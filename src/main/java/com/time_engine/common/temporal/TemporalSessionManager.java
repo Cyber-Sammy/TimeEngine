@@ -32,7 +32,10 @@ public final class TemporalSessionManager {
         int currentTick = player.getServer().getTickCount();
         UUID playerId = player.getUUID();
 
-        if (isActive(player) || getCooldownTicksRemaining(player, currentTick) > 0) {
+        if (isActive(player)) {
+            return false;
+        }
+        if (getCooldownTicksRemaining(player, currentTick) > 0) {
             return false;
         }
 
@@ -97,19 +100,15 @@ public final class TemporalSessionManager {
             }
 
             ServerPlayer owner = server.getPlayerList().getPlayer(entry.getKey());
-            if (owner == null || session.isExpired(currentTick)) {
-                session.deactivate();
+            if (owner == null) {
+                expireSession(entry, session, null, currentTick);
                 iterator.remove();
-                cooldownEndTicks.put(
-                        entry.getKey(), currentTick + TimeEngineConfig.cooldownTicks());
-
-                if (owner != null) {
-                    owner.displayClientMessage(
-                            Component.translatable("message.time_engine.temporal.expired"), true);
-                    expiredSessionOwners.add(owner);
-                }
-                ModLog.diagnostic(
-                        "Ended temporal session {} at tick {}", session.sessionId(), currentTick);
+                continue;
+            }
+            if (session.isExpired(currentTick)) {
+                expireSession(entry, session, owner, currentTick);
+                iterator.remove();
+                expiredSessionOwners.add(owner);
             }
         }
 
@@ -133,7 +132,10 @@ public final class TemporalSessionManager {
 
     private boolean stopSession(UUID ownerId, int currentTick, boolean applyCooldown) {
         TemporalSession session = sessionsByOwner.remove(ownerId);
-        if (session == null || !session.active()) {
+        if (session == null) {
+            return false;
+        }
+        if (!session.active()) {
             return false;
         }
 
@@ -149,6 +151,20 @@ public final class TemporalSessionManager {
     private int getCooldownTicksRemaining(ServerPlayer player, int currentTick) {
         return Math.max(
                 0, cooldownEndTicks.getOrDefault(player.getUUID(), currentTick) - currentTick);
+    }
+
+    private void expireSession(
+            Map.Entry<UUID, TemporalSession> entry,
+            TemporalSession session,
+            ServerPlayer owner,
+            int currentTick) {
+        session.deactivate();
+        cooldownEndTicks.put(entry.getKey(), currentTick + TimeEngineConfig.cooldownTicks());
+        if (owner != null) {
+            owner.displayClientMessage(
+                    Component.translatable("message.time_engine.temporal.expired"), true);
+        }
+        ModLog.diagnostic("Ended temporal session {} at tick {}", session.sessionId(), currentTick);
     }
 
     private static void warnIfSnapshotHistoryIsTooShort(TemporalSession session) {

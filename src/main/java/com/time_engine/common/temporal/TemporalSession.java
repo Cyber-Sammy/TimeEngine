@@ -21,7 +21,10 @@ public final class TemporalSession {
         if (durationTicks <= 0) {
             throw new IllegalArgumentException("durationTicks must be positive");
         }
-        if (timeScale <= 0.0F || timeScale > 1.0F) {
+        if (timeScale <= 0.0F) {
+            throw new IllegalArgumentException("timeScale must be in the range (0, 1]");
+        }
+        if (timeScale > 1.0F) {
             throw new IllegalArgumentException("timeScale must be in the range (0, 1]");
         }
         if (radius <= 0.0D) {

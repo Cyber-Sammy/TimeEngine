@@ -14,8 +14,10 @@ public final class TemporalDamageHandler {
                 (float)
                         (attacker.getAttributeValue(Attributes.ATTACK_DAMAGE)
                                 * TimeEngineConfig.phantomDamageMultiplier());
-        if (damage <= 0.0F
-                || !target.hurt(attacker.damageSources().playerAttack(attacker), damage)) {
+        if (damage <= 0.0F) {
+            return false;
+        }
+        if (!target.hurt(attacker.damageSources().playerAttack(attacker), damage)) {
             return false;
         }
 

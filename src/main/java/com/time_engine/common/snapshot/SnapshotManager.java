@@ -72,7 +72,7 @@ public final class SnapshotManager {
                 .values()
                 .removeIf(buffer -> buffer.latestRecordedTick() < oldestRetainedTick);
 
-        if (!activeSessions.isEmpty() && currentTick % 100 == 0) {
+        if (shouldLogSnapshotState(activeSessions, currentTick)) {
             ModLog.diagnostic(
                     "Snapshot state at tick {}: captured={}, trackedBuffers={}",
                     currentTick,
@@ -146,8 +146,7 @@ public final class SnapshotManager {
                                 owner,
                                 searchBounds,
                                 entity ->
-                                        shouldTrack(entity, includePlayers)
-                                                && entity.distanceToSqr(owner) <= radiusSquared);
+                                        isCandidate(entity, owner, includePlayers, radiusSquared));
         candidates.sort(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner)));
 
         int limit = Math.min(candidates.size(), TimeEngineConfig.maxTrackedEntitiesPerSession());
@@ -185,9 +184,32 @@ public final class SnapshotManager {
         if (entity.isRemoved()) {
             return false;
         }
-        return entity instanceof Mob
-                || entity instanceof Projectile
-                || (includePlayers && entity instanceof ServerPlayer);
+        if (entity instanceof Mob) {
+            return true;
+        }
+        if (entity instanceof Projectile) {
+            return true;
+        }
+        if (!includePlayers) {
+            return false;
+        }
+        return entity instanceof ServerPlayer;
+    }
+
+    private static boolean isCandidate(
+            Entity entity, ServerPlayer owner, boolean includePlayers, double radiusSquared) {
+        if (!shouldTrack(entity, includePlayers)) {
+            return false;
+        }
+        return entity.distanceToSqr(owner) <= radiusSquared;
+    }
+
+    private static boolean shouldLogSnapshotState(
+            Collection<TemporalSession> activeSessions, int currentTick) {
+        if (activeSessions.isEmpty()) {
+            return false;
+        }
+        return currentTick % 100 == 0;
     }
 
     public record BufferStats(int size, int capacity, int latestSnapshotTick) {}

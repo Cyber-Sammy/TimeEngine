@@ -76,7 +76,10 @@ public record GhostFramePayload(
         double perceivedTick = buffer.readDouble();
         ResourceLocation dimension = buffer.readResourceLocation();
         int entityCount = buffer.readVarInt();
-        if (entityCount < 0 || entityCount > MAX_ENTITY_STATES) {
+        if (entityCount < 0) {
+            throw new IllegalArgumentException("Invalid ghost entity state count: " + entityCount);
+        }
+        if (entityCount > MAX_ENTITY_STATES) {
             throw new IllegalArgumentException("Invalid ghost entity state count: " + entityCount);
         }
 

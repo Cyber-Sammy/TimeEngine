@@ -80,57 +80,77 @@ public record TemporalConfigSnapshot(
         invalid =
                 validateRange(
                         "durationTicks", durationTicks, MIN_DURATION_TICKS, MAX_DURATION_TICKS);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid =
                 validateRange(
                         "cooldownTicks", cooldownTicks, MIN_COOLDOWN_TICKS, MAX_COOLDOWN_TICKS);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid = validateRange("timeScale", timeScale, MIN_TIME_SCALE, MAX_TIME_SCALE);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid = validateRange("radius", radius, MIN_RADIUS, MAX_RADIUS);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid =
                 validateRange(
                         "snapshotHistoryTicks",
                         snapshotHistoryTicks,
                         MIN_HISTORY_TICKS,
                         MAX_HISTORY_TICKS);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid =
                 validateRange(
                         "maxTrackedEntities",
                         maxTrackedEntities,
                         MIN_TRACKED_ENTITIES,
                         MAX_TRACKED_ENTITIES);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid =
                 validateRange(
                         "ghostFrameIntervalTicks",
                         ghostFrameIntervalTicks,
                         MIN_GHOST_FRAME_INTERVAL,
                         MAX_GHOST_FRAME_INTERVAL);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid =
                 validateRange(
                         "phantomAttackReach",
                         phantomAttackReach,
                         MIN_ATTACK_REACH,
                         MAX_ATTACK_REACH);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid =
                 validateRange(
                         "phantomDamageMultiplier",
                         phantomDamageMultiplier,
                         MIN_DAMAGE_MULTIPLIER,
                         MAX_DAMAGE_MULTIPLIER);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         invalid =
                 validateRange(
                         "phantomAttackCooldownTicks",
                         phantomAttackCooldownTicks,
                         MIN_ATTACK_COOLDOWN_TICKS,
                         MAX_ATTACK_COOLDOWN_TICKS);
-        if (invalid.isPresent()) return invalid;
+        if (invalid.isPresent()) {
+            return invalid;
+        }
         return validateRange(
                 "phantomAllowedHitTickDrift",
                 phantomAllowedHitTickDrift,
@@ -172,15 +192,28 @@ public record TemporalConfigSnapshot(
     }
 
     private static Optional<String> validateRange(String name, int value, int min, int max) {
-        return value < min || value > max
-                ? Optional.of(name + " must be between " + min + " and " + max)
-                : Optional.empty();
+        String errorMessage = name + " must be between " + min + " and " + max;
+        if (value < min) {
+            return Optional.of(errorMessage);
+        }
+        if (value > max) {
+            return Optional.of(errorMessage);
+        }
+        return Optional.empty();
     }
 
     private static Optional<String> validateRange(
             String name, double value, double min, double max) {
-        return !Double.isFinite(value) || value < min || value > max
-                ? Optional.of(name + " must be between " + min + " and " + max)
-                : Optional.empty();
+        String errorMessage = name + " must be between " + min + " and " + max;
+        if (!Double.isFinite(value)) {
+            return Optional.of(errorMessage);
+        }
+        if (value < min) {
+            return Optional.of(errorMessage);
+        }
+        if (value > max) {
+            return Optional.of(errorMessage);
+        }
+        return Optional.empty();
     }
 }

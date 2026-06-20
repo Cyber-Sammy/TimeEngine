@@ -73,7 +73,7 @@ public final class TemporalCombatService {
     private void logRejection(ServerPlayer attacker, RejectionReason reason, int serverTick) {
         UUID attackerId = attacker.getUUID();
         Integer lastLogTick = lastRejectionLogTicks.get(attackerId);
-        if (lastLogTick != null && serverTick - lastLogTick < REJECTION_LOG_INTERVAL_TICKS) {
+        if (shouldSuppressRejectionLog(lastLogTick, serverTick)) {
             return;
         }
 
@@ -83,5 +83,12 @@ public final class TemporalCombatService {
                 attackerId,
                 serverTick,
                 reason);
+    }
+
+    private static boolean shouldSuppressRejectionLog(Integer lastLogTick, int serverTick) {
+        if (lastLogTick == null) {
+            return false;
+        }
+        return serverTick - lastLogTick < REJECTION_LOG_INTERVAL_TICKS;
     }
 }

@@ -17,8 +17,7 @@ public final class GhostDebugRenderer {
     private GhostDebugRenderer() {}
 
     public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES
-                || !ClientTemporalState.isActive()) {
+        if (!shouldRender(event)) {
             return;
         }
 
@@ -43,5 +42,12 @@ public final class GhostDebugRenderer {
                                 poseStack, lines, state.boundingBox(), RED, GREEN, BLUE, ALPHA));
         poseStack.popPose();
         minecraft.renderBuffers().bufferSource().endBatch(RenderType.lines());
+    }
+
+    private static boolean shouldRender(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            return false;
+        }
+        return ClientTemporalState.isActive();
     }
 }

@@ -11,7 +11,10 @@ public final class PhantomHitDetector {
 
     public static OptionalDouble rayIntersectionDistance(
             Vec3 origin, Vec3 direction, double reach, AABB targetBounds) {
-        if (reach <= 0.0D || direction.lengthSqr() < MIN_DIRECTION_LENGTH_SQUARED) {
+        if (reach <= 0.0D) {
+            return OptionalDouble.empty();
+        }
+        if (direction.lengthSqr() < MIN_DIRECTION_LENGTH_SQUARED) {
             return OptionalDouble.empty();
         }
         if (targetBounds.contains(origin)) {

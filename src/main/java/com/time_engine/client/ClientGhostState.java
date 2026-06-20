@@ -22,14 +22,11 @@ public final class ClientGhostState {
 
     public static void apply(GhostFramePayload payload) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null
-                || !ClientTemporalState.isActive()
-                || !Objects.equals(ClientTemporalState.sessionId(), payload.sessionId())
-                || !minecraft.level.dimension().location().equals(payload.dimension())) {
+        if (!canApply(minecraft, payload)) {
             clear();
             return;
         }
-        if (currentFrame != null && payload.serverTick() <= currentFrame.serverTick()) {
+        if (isOutdated(payload)) {
             return;
         }
 
@@ -44,12 +41,10 @@ public final class ClientGhostState {
 
     public static Optional<RenderedGhostFrame> getRenderedFrame(float partialTick) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null
-                || currentFrame == null
-                || minecraft.level.getGameTime() - currentFrameReceivedAtTick > STALE_FRAME_TICKS) {
+        if (!hasRenderableFrame(minecraft)) {
             return Optional.empty();
         }
-        if (previousFrame == null || !previousFrame.sessionId().equals(currentFrame.sessionId())) {
+        if (!canInterpolateFrames()) {
             return Optional.of(
                     new RenderedGhostFrame(currentFrame.perceivedTick(), currentFrame.entities()));
         }
@@ -73,6 +68,43 @@ public final class ClientGhostState {
         double perceivedTick =
                 Mth.lerp(progress, previousFrame.perceivedTick(), currentFrame.perceivedTick());
         return Optional.of(new RenderedGhostFrame(perceivedTick, entities));
+    }
+
+    private static boolean canApply(Minecraft minecraft, GhostFramePayload payload) {
+        if (minecraft.level == null) {
+            return false;
+        }
+        if (!ClientTemporalState.isActive()) {
+            return false;
+        }
+        if (!Objects.equals(ClientTemporalState.sessionId(), payload.sessionId())) {
+            return false;
+        }
+        return minecraft.level.dimension().location().equals(payload.dimension());
+    }
+
+    private static boolean isOutdated(GhostFramePayload payload) {
+        if (currentFrame == null) {
+            return false;
+        }
+        return payload.serverTick() <= currentFrame.serverTick();
+    }
+
+    private static boolean hasRenderableFrame(Minecraft minecraft) {
+        if (minecraft.level == null) {
+            return false;
+        }
+        if (currentFrame == null) {
+            return false;
+        }
+        return minecraft.level.getGameTime() - currentFrameReceivedAtTick <= STALE_FRAME_TICKS;
+    }
+
+    private static boolean canInterpolateFrames() {
+        if (previousFrame == null) {
+            return false;
+        }
+        return previousFrame.sessionId().equals(currentFrame.sessionId());
     }
 
     public static void clear() {

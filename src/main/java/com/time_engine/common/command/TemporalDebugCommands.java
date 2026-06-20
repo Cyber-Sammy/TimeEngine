@@ -125,8 +125,12 @@ public final class TemporalDebugCommands {
     }
 
     private static boolean canUseCommands(CommandSourceStack source) {
-        return source.hasPermission(2)
-                || source.getEntity() instanceof ServerPlayer player
-                        && TemporalConfigService.canEdit(player);
+        if (source.hasPermission(2)) {
+            return true;
+        }
+        if (!(source.getEntity() instanceof ServerPlayer player)) {
+            return false;
+        }
+        return TemporalConfigService.canEdit(player);
     }
 }
