@@ -10,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ModNetworking {
-    public static final String PROTOCOL_VERSION = "1";
+    public static final String PROTOCOL_VERSION = "2";
 
     private ModNetworking() {}
 
@@ -22,10 +22,15 @@ public final class ModNetworking {
                 ModNetworking::handleActivationRequest);
 
         if (FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
-            registrar.playToClient(
-                    TemporalStatePayload.TYPE,
-                    TemporalStatePayload.STREAM_CODEC,
-                    (payload, context) -> {});
+            registrar
+                    .playToClient(
+                            TemporalStatePayload.TYPE,
+                            TemporalStatePayload.STREAM_CODEC,
+                            (payload, context) -> {})
+                    .playToClient(
+                            GhostFramePayload.TYPE,
+                            GhostFramePayload.STREAM_CODEC,
+                            (payload, context) -> {});
         }
     }
 

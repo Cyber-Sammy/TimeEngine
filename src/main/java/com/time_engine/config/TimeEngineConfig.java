@@ -15,6 +15,7 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.IntValue SNAPSHOT_HISTORY_TICKS;
     public static final ModConfigSpec.IntValue MAX_TRACKED_ENTITIES_PER_SESSION;
     public static final ModConfigSpec.BooleanValue SNAPSHOT_PLAYERS_ALWAYS;
+    public static final ModConfigSpec.IntValue GHOST_FRAME_INTERVAL_TICKS;
 
     static {
         ModConfigSpec.Builder commonBuilder = new ModConfigSpec.Builder();
@@ -76,6 +77,14 @@ public final class TimeEngineConfig {
                                 "Keep bounded snapshot history for online players even when no temporal session is active.")
                         .define("snapshotPlayersAlways", true);
         serverBuilder.pop();
+
+        serverBuilder.push("networking");
+        GHOST_FRAME_INTERVAL_TICKS =
+                serverBuilder
+                        .comment(
+                                "Interval between ghost frame packets in server ticks. Lower values are smoother but use more bandwidth.")
+                        .defineInRange("ghostFrameIntervalTicks", 2, 1, 20);
+        serverBuilder.pop();
         SERVER_SPEC = serverBuilder.build();
     }
 
@@ -111,5 +120,9 @@ public final class TimeEngineConfig {
 
     public static boolean snapshotPlayersAlways() {
         return SNAPSHOT_PLAYERS_ALWAYS.get();
+    }
+
+    public static int ghostFrameIntervalTicks() {
+        return GHOST_FRAME_INTERVAL_TICKS.get();
     }
 }

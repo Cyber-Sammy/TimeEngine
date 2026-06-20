@@ -6,6 +6,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 @EventBusSubscriber(modid = TimeEngine.MOD_ID, value = Dist.CLIENT)
 public final class ClientGameEvents {
@@ -16,8 +17,17 @@ public final class ClientGameEvents {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.level == null) {
             ClientTemporalState.reset();
+            ClientGhostState.clear();
             return;
         }
+        if (!ClientTemporalState.isActive()) {
+            ClientGhostState.clear();
+        }
         TimeEngineKeyMappings.handleInput();
+    }
+
+    @SubscribeEvent
+    public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        GhostDebugRenderer.render(event);
     }
 }

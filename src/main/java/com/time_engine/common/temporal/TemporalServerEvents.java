@@ -2,6 +2,7 @@ package com.time_engine.common.temporal;
 
 import com.time_engine.TimeEngine;
 import com.time_engine.common.command.TemporalDebugCommands;
+import com.time_engine.common.network.GhostFrameBroadcaster;
 import com.time_engine.common.network.ModNetworking;
 import com.time_engine.common.snapshot.SnapshotManager;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,6 +23,7 @@ public final class TemporalServerEvents {
                 .tick(event.getServer())
                 .forEach(ModNetworking::sendState);
         SnapshotManager.getInstance().tick(event.getServer());
+        GhostFrameBroadcaster.tick(event.getServer());
     }
 
     @SubscribeEvent
