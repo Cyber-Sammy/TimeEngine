@@ -19,17 +19,19 @@ public final class ClientGameEvents {
         if (!hasActiveWorld(minecraft)) {
             ClientTemporalState.reset();
             ClientGhostState.clear();
+            ClientAfterimageState.clear();
             return;
         }
         if (!ClientTemporalState.isActive()) {
             ClientGhostState.clear();
         }
+        ClientAfterimageState.tick();
         TimeEngineKeyMappings.handleInput();
     }
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        GhostDebugRenderer.render(event);
+        TemporalDebugRenderer.render(event);
     }
 
     @SubscribeEvent

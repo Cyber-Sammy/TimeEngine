@@ -34,6 +34,9 @@ public final class TemporalConfigService {
         TimeEngineConfig.MAX_TRACKED_ENTITIES_PER_SESSION.set(requested.maxTrackedEntities());
         TimeEngineConfig.SNAPSHOT_PLAYERS_ALWAYS.set(requested.snapshotPlayersAlways());
         TimeEngineConfig.GHOST_FRAME_INTERVAL_TICKS.set(requested.ghostFrameIntervalTicks());
+        TimeEngineConfig.AFTERIMAGE_INTERVAL_TICKS.set(requested.afterimageIntervalTicks());
+        TimeEngineConfig.AFTERIMAGE_LIFETIME_TICKS.set(requested.afterimageLifetimeTicks());
+        TimeEngineConfig.AFTERIMAGE_OBSERVER_RADIUS.set(requested.afterimageObserverRadius());
         TimeEngineConfig.PHANTOM_ATTACK_REACH.set(requested.phantomAttackReach());
         TimeEngineConfig.PHANTOM_DAMAGE_MULTIPLIER.set(requested.phantomDamageMultiplier());
         TimeEngineConfig.PHANTOM_ATTACK_COOLDOWN_TICKS.set(requested.phantomAttackCooldownTicks());

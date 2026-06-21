@@ -3,6 +3,7 @@ package com.time_engine.common.temporal;
 import com.time_engine.TimeEngine;
 import com.time_engine.common.combat.TemporalCombatService;
 import com.time_engine.common.command.TemporalDebugCommands;
+import com.time_engine.common.network.AfterimageBroadcaster;
 import com.time_engine.common.network.GhostFrameBroadcaster;
 import com.time_engine.common.network.ModNetworking;
 import com.time_engine.common.snapshot.SnapshotManager;
@@ -25,6 +26,7 @@ public final class TemporalServerEvents {
                 .forEach(ModNetworking::sendState);
         SnapshotManager.getInstance().tick(event.getServer());
         GhostFrameBroadcaster.tick(event.getServer());
+        AfterimageBroadcaster.tick(event.getServer());
     }
 
     @SubscribeEvent

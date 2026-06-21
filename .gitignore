@@ -10,3 +10,7 @@ run/
 bin/
 logs/
 crash-reports/
+
+# Local development notes (intentionally not committed)
+/docs/ROADMAP.md
+/docs/TECHNICAL_DEBT.md

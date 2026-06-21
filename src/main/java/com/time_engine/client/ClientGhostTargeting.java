@@ -2,8 +2,8 @@ package com.time_engine.client;
 
 import com.time_engine.client.ClientGhostState.RenderedGhostFrame;
 import com.time_engine.common.combat.PhantomHitDetector;
-import com.time_engine.common.network.GhostFramePayload.GhostEntityState;
 import com.time_engine.common.network.PhantomHitRequestPayload;
+import com.time_engine.common.network.TemporalEntityRenderState;
 import java.util.OptionalDouble;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
@@ -28,9 +28,9 @@ public final class ClientGhostTargeting {
         Vec3 origin = minecraft.player.getEyePosition(partialTick);
         Vec3 direction = minecraft.player.getViewVector(partialTick);
         double reach = ClientTemporalState.phantomAttackReach();
-        GhostEntityState nearest = null;
+        TemporalEntityRenderState nearest = null;
         double nearestDistance = Double.POSITIVE_INFINITY;
-        for (GhostEntityState state : frame.entities()) {
+        for (TemporalEntityRenderState state : frame.entities()) {
             OptionalDouble distance =
                     PhantomHitDetector.rayIntersectionDistance(
                             origin, direction, reach, state.boundingBox());
