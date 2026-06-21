@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ModNetworking {
-    public static final String PROTOCOL_VERSION = "4";
+    public static final String PROTOCOL_VERSION = "5";
 
     private ModNetworking() {}
 
@@ -42,6 +42,10 @@ public final class ModNetworking {
                     .playToClient(
                             GhostFramePayload.TYPE,
                             GhostFramePayload.STREAM_CODEC,
+                            (payload, context) -> {})
+                    .playToClient(
+                            AfterimagePayload.TYPE,
+                            AfterimagePayload.STREAM_CODEC,
                             (payload, context) -> {})
                     .playToClient(
                             TemporalConfigPayload.TYPE,

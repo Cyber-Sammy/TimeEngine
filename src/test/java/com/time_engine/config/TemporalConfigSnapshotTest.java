@@ -27,6 +27,9 @@ class TemporalConfigSnapshotTest {
                         defaults.maxTrackedEntities(),
                         defaults.snapshotPlayersAlways(),
                         defaults.ghostFrameIntervalTicks(),
+                        defaults.afterimageIntervalTicks(),
+                        defaults.afterimageLifetimeTicks(),
+                        defaults.afterimageObserverRadius(),
                         defaults.phantomAttackReach(),
                         defaults.phantomDamageMultiplier(),
                         defaults.phantomAttackCooldownTicks(),
@@ -46,5 +49,32 @@ class TemporalConfigSnapshotTest {
         } finally {
             buffer.release();
         }
+    }
+
+    @Test
+    void rejectsInvalidAfterimageLifetime() {
+        TemporalConfigSnapshot defaults = TemporalConfigSnapshot.defaults();
+        TemporalConfigSnapshot invalid =
+                new TemporalConfigSnapshot(
+                        defaults.diagnosticLogging(),
+                        defaults.durationTicks(),
+                        defaults.cooldownTicks(),
+                        defaults.timeScale(),
+                        defaults.radius(),
+                        defaults.snapshotHistoryTicks(),
+                        defaults.maxTrackedEntities(),
+                        defaults.snapshotPlayersAlways(),
+                        defaults.ghostFrameIntervalTicks(),
+                        defaults.afterimageIntervalTicks(),
+                        0,
+                        defaults.afterimageObserverRadius(),
+                        defaults.phantomAttackReach(),
+                        defaults.phantomDamageMultiplier(),
+                        defaults.phantomAttackCooldownTicks(),
+                        defaults.phantomAllowedHitTickDrift());
+
+        assertEquals(
+                "afterimageLifetimeTicks must be between 1 and 200",
+                invalid.validate().orElseThrow());
     }
 }

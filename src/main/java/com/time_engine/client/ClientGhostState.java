@@ -1,7 +1,7 @@
 package com.time_engine.client;
 
 import com.time_engine.common.network.GhostFramePayload;
-import com.time_engine.common.network.GhostFramePayload.GhostEntityState;
+import com.time_engine.common.network.TemporalEntityRenderState;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +35,7 @@ public final class ClientGhostState {
         currentFrameReceivedAtTick = minecraft.level.getGameTime();
     }
 
-    public static List<GhostEntityState> getRenderStates(float partialTick) {
+    public static List<TemporalEntityRenderState> getRenderStates(float partialTick) {
         return getRenderedFrame(partialTick).map(RenderedGhostFrame::entities).orElseGet(List::of);
     }
 
@@ -52,13 +52,13 @@ public final class ClientGhostState {
         int frameInterval = Math.max(1, currentFrame.serverTick() - previousFrame.serverTick());
         double elapsed = minecraft.level.getGameTime() - currentFrameReceivedAtTick + partialTick;
         double progress = Mth.clamp(elapsed / frameInterval, 0.0D, 1.0D);
-        Map<UUID, GhostEntityState> previousById = new HashMap<>();
+        Map<UUID, TemporalEntityRenderState> previousById = new HashMap<>();
         previousFrame.entities().forEach(state -> previousById.put(state.entityId(), state));
-        List<GhostEntityState> entities =
+        List<TemporalEntityRenderState> entities =
                 currentFrame.entities().stream()
                         .map(
                                 current -> {
-                                    GhostEntityState previous =
+                                    TemporalEntityRenderState previous =
                                             previousById.get(current.entityId());
                                     return previous == null
                                             ? current
@@ -113,5 +113,6 @@ public final class ClientGhostState {
         currentFrameReceivedAtTick = 0L;
     }
 
-    public record RenderedGhostFrame(double perceivedTick, List<GhostEntityState> entities) {}
+    public record RenderedGhostFrame(
+            double perceivedTick, List<TemporalEntityRenderState> entities) {}
 }

@@ -1,6 +1,7 @@
 package com.time_engine.client;
 
 import com.time_engine.TimeEngine;
+import com.time_engine.common.network.AfterimagePayload;
 import com.time_engine.common.network.GhostFramePayload;
 import com.time_engine.common.network.ModNetworking;
 import com.time_engine.common.network.TemporalConfigPayload;
@@ -27,6 +28,10 @@ public final class ClientNetworking {
                         GhostFramePayload.STREAM_CODEC,
                         ClientNetworking::handleGhostFrame)
                 .playToClient(
+                        AfterimagePayload.TYPE,
+                        AfterimagePayload.STREAM_CODEC,
+                        ClientNetworking::handleAfterimage)
+                .playToClient(
                         TemporalConfigPayload.TYPE,
                         TemporalConfigPayload.STREAM_CODEC,
                         ClientNetworking::handleTemporalConfig);
@@ -41,6 +46,10 @@ public final class ClientNetworking {
 
     private static void handleGhostFrame(GhostFramePayload payload, IPayloadContext context) {
         ClientGhostState.apply(payload);
+    }
+
+    private static void handleAfterimage(AfterimagePayload payload, IPayloadContext context) {
+        ClientAfterimageState.apply(payload);
     }
 
     private static void handleTemporalConfig(

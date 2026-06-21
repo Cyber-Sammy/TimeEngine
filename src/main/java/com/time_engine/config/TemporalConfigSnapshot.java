@@ -1,6 +1,7 @@
 package com.time_engine.config;
 
 import com.time_engine.common.temporal.TemporalConstants;
+import java.util.List;
 import java.util.Optional;
 import net.minecraft.network.FriendlyByteBuf;
 
@@ -14,6 +15,9 @@ public record TemporalConfigSnapshot(
         int maxTrackedEntities,
         boolean snapshotPlayersAlways,
         int ghostFrameIntervalTicks,
+        int afterimageIntervalTicks,
+        int afterimageLifetimeTicks,
+        double afterimageObserverRadius,
         double phantomAttackReach,
         double phantomDamageMultiplier,
         int phantomAttackCooldownTicks,
@@ -32,6 +36,12 @@ public record TemporalConfigSnapshot(
     public static final int MAX_TRACKED_ENTITIES = 2048;
     public static final int MIN_GHOST_FRAME_INTERVAL = 1;
     public static final int MAX_GHOST_FRAME_INTERVAL = 20;
+    public static final int MIN_AFTERIMAGE_INTERVAL = 1;
+    public static final int MAX_AFTERIMAGE_INTERVAL = 20;
+    public static final int MIN_AFTERIMAGE_LIFETIME = 1;
+    public static final int MAX_AFTERIMAGE_LIFETIME = 200;
+    public static final double MIN_AFTERIMAGE_OBSERVER_RADIUS = 1.0D;
+    public static final double MAX_AFTERIMAGE_OBSERVER_RADIUS = 256.0D;
     public static final double MIN_ATTACK_REACH = 1.0D;
     public static final double MAX_ATTACK_REACH = 16.0D;
     public static final double MIN_DAMAGE_MULTIPLIER = 0.0D;
@@ -52,6 +62,9 @@ public record TemporalConfigSnapshot(
                 TimeEngineConfig.maxTrackedEntitiesPerSession(),
                 TimeEngineConfig.snapshotPlayersAlways(),
                 TimeEngineConfig.ghostFrameIntervalTicks(),
+                TimeEngineConfig.afterimageIntervalTicks(),
+                TimeEngineConfig.afterimageLifetimeTicks(),
+                TimeEngineConfig.afterimageObserverRadius(),
                 TimeEngineConfig.phantomAttackReach(),
                 TimeEngineConfig.phantomDamageMultiplier(),
                 TimeEngineConfig.phantomAttackCooldownTicks(),
@@ -69,6 +82,9 @@ public record TemporalConfigSnapshot(
                 128,
                 true,
                 2,
+                2,
+                12,
+                64.0D,
                 4.5D,
                 1.0D,
                 10,
@@ -76,86 +92,76 @@ public record TemporalConfigSnapshot(
     }
 
     public Optional<String> validate() {
-        Optional<String> invalid;
-        invalid =
-                validateRange(
-                        "durationTicks", durationTicks, MIN_DURATION_TICKS, MAX_DURATION_TICKS);
-        if (invalid.isPresent()) {
-            return invalid;
+        List<Optional<String>> validations =
+                List.of(
+                        validateRange(
+                                "durationTicks",
+                                durationTicks,
+                                MIN_DURATION_TICKS,
+                                MAX_DURATION_TICKS),
+                        validateRange(
+                                "cooldownTicks",
+                                cooldownTicks,
+                                MIN_COOLDOWN_TICKS,
+                                MAX_COOLDOWN_TICKS),
+                        validateRange("timeScale", timeScale, MIN_TIME_SCALE, MAX_TIME_SCALE),
+                        validateRange("radius", radius, MIN_RADIUS, MAX_RADIUS),
+                        validateRange(
+                                "snapshotHistoryTicks",
+                                snapshotHistoryTicks,
+                                MIN_HISTORY_TICKS,
+                                MAX_HISTORY_TICKS),
+                        validateRange(
+                                "maxTrackedEntities",
+                                maxTrackedEntities,
+                                MIN_TRACKED_ENTITIES,
+                                MAX_TRACKED_ENTITIES),
+                        validateRange(
+                                "ghostFrameIntervalTicks",
+                                ghostFrameIntervalTicks,
+                                MIN_GHOST_FRAME_INTERVAL,
+                                MAX_GHOST_FRAME_INTERVAL),
+                        validateRange(
+                                "afterimageIntervalTicks",
+                                afterimageIntervalTicks,
+                                MIN_AFTERIMAGE_INTERVAL,
+                                MAX_AFTERIMAGE_INTERVAL),
+                        validateRange(
+                                "afterimageLifetimeTicks",
+                                afterimageLifetimeTicks,
+                                MIN_AFTERIMAGE_LIFETIME,
+                                MAX_AFTERIMAGE_LIFETIME),
+                        validateRange(
+                                "afterimageObserverRadius",
+                                afterimageObserverRadius,
+                                MIN_AFTERIMAGE_OBSERVER_RADIUS,
+                                MAX_AFTERIMAGE_OBSERVER_RADIUS),
+                        validateRange(
+                                "phantomAttackReach",
+                                phantomAttackReach,
+                                MIN_ATTACK_REACH,
+                                MAX_ATTACK_REACH),
+                        validateRange(
+                                "phantomDamageMultiplier",
+                                phantomDamageMultiplier,
+                                MIN_DAMAGE_MULTIPLIER,
+                                MAX_DAMAGE_MULTIPLIER),
+                        validateRange(
+                                "phantomAttackCooldownTicks",
+                                phantomAttackCooldownTicks,
+                                MIN_ATTACK_COOLDOWN_TICKS,
+                                MAX_ATTACK_COOLDOWN_TICKS),
+                        validateRange(
+                                "phantomAllowedHitTickDrift",
+                                phantomAllowedHitTickDrift,
+                                MIN_HIT_TICK_DRIFT,
+                                MAX_HIT_TICK_DRIFT));
+        for (Optional<String> validation : validations) {
+            if (validation.isPresent()) {
+                return validation;
+            }
         }
-        invalid =
-                validateRange(
-                        "cooldownTicks", cooldownTicks, MIN_COOLDOWN_TICKS, MAX_COOLDOWN_TICKS);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid = validateRange("timeScale", timeScale, MIN_TIME_SCALE, MAX_TIME_SCALE);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid = validateRange("radius", radius, MIN_RADIUS, MAX_RADIUS);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid =
-                validateRange(
-                        "snapshotHistoryTicks",
-                        snapshotHistoryTicks,
-                        MIN_HISTORY_TICKS,
-                        MAX_HISTORY_TICKS);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid =
-                validateRange(
-                        "maxTrackedEntities",
-                        maxTrackedEntities,
-                        MIN_TRACKED_ENTITIES,
-                        MAX_TRACKED_ENTITIES);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid =
-                validateRange(
-                        "ghostFrameIntervalTicks",
-                        ghostFrameIntervalTicks,
-                        MIN_GHOST_FRAME_INTERVAL,
-                        MAX_GHOST_FRAME_INTERVAL);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid =
-                validateRange(
-                        "phantomAttackReach",
-                        phantomAttackReach,
-                        MIN_ATTACK_REACH,
-                        MAX_ATTACK_REACH);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid =
-                validateRange(
-                        "phantomDamageMultiplier",
-                        phantomDamageMultiplier,
-                        MIN_DAMAGE_MULTIPLIER,
-                        MAX_DAMAGE_MULTIPLIER);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        invalid =
-                validateRange(
-                        "phantomAttackCooldownTicks",
-                        phantomAttackCooldownTicks,
-                        MIN_ATTACK_COOLDOWN_TICKS,
-                        MAX_ATTACK_COOLDOWN_TICKS);
-        if (invalid.isPresent()) {
-            return invalid;
-        }
-        return validateRange(
-                "phantomAllowedHitTickDrift",
-                phantomAllowedHitTickDrift,
-                MIN_HIT_TICK_DRIFT,
-                MAX_HIT_TICK_DRIFT);
+        return Optional.empty();
     }
 
     public void encode(FriendlyByteBuf buffer) {
@@ -168,6 +174,9 @@ public record TemporalConfigSnapshot(
         buffer.writeVarInt(maxTrackedEntities);
         buffer.writeBoolean(snapshotPlayersAlways);
         buffer.writeVarInt(ghostFrameIntervalTicks);
+        buffer.writeVarInt(afterimageIntervalTicks);
+        buffer.writeVarInt(afterimageLifetimeTicks);
+        buffer.writeDouble(afterimageObserverRadius);
         buffer.writeDouble(phantomAttackReach);
         buffer.writeDouble(phantomDamageMultiplier);
         buffer.writeVarInt(phantomAttackCooldownTicks);
@@ -185,6 +194,9 @@ public record TemporalConfigSnapshot(
                 buffer.readVarInt(),
                 buffer.readBoolean(),
                 buffer.readVarInt(),
+                buffer.readVarInt(),
+                buffer.readVarInt(),
+                buffer.readDouble(),
                 buffer.readDouble(),
                 buffer.readDouble(),
                 buffer.readVarInt(),

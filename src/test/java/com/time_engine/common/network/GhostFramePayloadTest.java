@@ -3,7 +3,6 @@ package com.time_engine.common.network;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.time_engine.common.network.GhostFramePayload.GhostEntityState;
 import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.UUID;
@@ -19,10 +18,10 @@ class GhostFramePayloadTest {
 
     @Test
     void interpolatesPositionBoundsAndWrappedRotation() {
-        GhostEntityState previous = state(0.0D, 170.0F);
-        GhostEntityState current = state(10.0D, -170.0F);
+        TemporalEntityRenderState previous = state(0.0D, 170.0F, Pose.STANDING);
+        TemporalEntityRenderState current = state(10.0D, -170.0F, Pose.STANDING);
 
-        GhostEntityState interpolated = previous.interpolate(current, 0.5D);
+        TemporalEntityRenderState interpolated = previous.interpolate(current, 0.5D);
 
         assertEquals(5.0D, interpolated.position().x, 0.0001D);
         assertEquals(5.0D, interpolated.boundingBox().minX, 0.0001D);
@@ -31,7 +30,7 @@ class GhostFramePayloadTest {
 
     @Test
     void payloadCopiesEntityList() {
-        var entities = new java.util.ArrayList<>(List.of(state(0.0D, 0.0F)));
+        var entities = new java.util.ArrayList<>(List.of(state(0.0D, 0.0F, Pose.STANDING)));
         GhostFramePayload payload =
                 new GhostFramePayload(
                         UUID.randomUUID(),
@@ -59,27 +58,49 @@ class GhostFramePayloadTest {
     @Test
     void fallsBackToStandingForUnknownPose() {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        buffer.writeUtf("UNKNOWN_FUTURE_POSE", 64);
+        try {
+            writeState(buffer, "UNKNOWN_FUTURE_POSE");
 
-        assertEquals(Pose.STANDING, GhostFramePayload.POSE_CODEC.decode(buffer));
-        buffer.release();
+            assertEquals(
+                    Pose.STANDING, TemporalEntityRenderState.STREAM_CODEC.decode(buffer).pose());
+        } finally {
+            buffer.release();
+        }
     }
 
     private static Pose roundTrip(Pose pose) {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        GhostFramePayload.POSE_CODEC.encode(buffer, pose);
-        Pose decoded = GhostFramePayload.POSE_CODEC.decode(buffer);
-        buffer.release();
-        return decoded;
+        try {
+            TemporalEntityRenderState.STREAM_CODEC.encode(buffer, state(0.0D, 0.0F, pose));
+            return TemporalEntityRenderState.STREAM_CODEC.decode(buffer).pose();
+        } finally {
+            buffer.release();
+        }
     }
 
-    private static GhostEntityState state(double x, float yRot) {
-        return new GhostEntityState(
+    private static void writeState(FriendlyByteBuf buffer, String poseName) {
+        buffer.writeUUID(ENTITY_ID);
+        buffer.writeDouble(0.0D);
+        buffer.writeDouble(2.0D);
+        buffer.writeDouble(3.0D);
+        buffer.writeFloat(0.0F);
+        buffer.writeFloat(0.0F);
+        buffer.writeUtf(poseName, 64);
+        buffer.writeDouble(0.0D);
+        buffer.writeDouble(2.0D);
+        buffer.writeDouble(3.0D);
+        buffer.writeDouble(1.0D);
+        buffer.writeDouble(4.0D);
+        buffer.writeDouble(4.0D);
+    }
+
+    private static TemporalEntityRenderState state(double x, float yRot, Pose pose) {
+        return new TemporalEntityRenderState(
                 ENTITY_ID,
                 new Vec3(x, 2.0D, 3.0D),
                 yRot,
                 0.0F,
-                Pose.STANDING,
+                pose,
                 new AABB(x, 2.0D, 3.0D, x + 1.0D, 4.0D, 4.0D));
     }
 }

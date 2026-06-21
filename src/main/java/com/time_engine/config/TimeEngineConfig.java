@@ -16,6 +16,9 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.IntValue MAX_TRACKED_ENTITIES_PER_SESSION;
     public static final ModConfigSpec.BooleanValue SNAPSHOT_PLAYERS_ALWAYS;
     public static final ModConfigSpec.IntValue GHOST_FRAME_INTERVAL_TICKS;
+    public static final ModConfigSpec.IntValue AFTERIMAGE_INTERVAL_TICKS;
+    public static final ModConfigSpec.IntValue AFTERIMAGE_LIFETIME_TICKS;
+    public static final ModConfigSpec.DoubleValue AFTERIMAGE_OBSERVER_RADIUS;
     public static final ModConfigSpec.DoubleValue PHANTOM_ATTACK_REACH;
     public static final ModConfigSpec.DoubleValue PHANTOM_DAMAGE_MULTIPLIER;
     public static final ModConfigSpec.IntValue PHANTOM_ATTACK_COOLDOWN_TICKS;
@@ -108,6 +111,31 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().ghostFrameIntervalTicks(),
                                 TemporalConfigSnapshot.MIN_GHOST_FRAME_INTERVAL,
                                 TemporalConfigSnapshot.MAX_GHOST_FRAME_INTERVAL);
+        AFTERIMAGE_INTERVAL_TICKS =
+                serverBuilder
+                        .comment(
+                                "Interval between afterimage anchors in server ticks. Lower values are smoother but use more bandwidth.")
+                        .defineInRange(
+                                "afterimageIntervalTicks",
+                                TemporalConfigSnapshot.defaults().afterimageIntervalTicks(),
+                                TemporalConfigSnapshot.MIN_AFTERIMAGE_INTERVAL,
+                                TemporalConfigSnapshot.MAX_AFTERIMAGE_INTERVAL);
+        AFTERIMAGE_LIFETIME_TICKS =
+                serverBuilder
+                        .comment("Lifetime of an afterimage anchor on observing clients, in ticks.")
+                        .defineInRange(
+                                "afterimageLifetimeTicks",
+                                TemporalConfigSnapshot.defaults().afterimageLifetimeTicks(),
+                                TemporalConfigSnapshot.MIN_AFTERIMAGE_LIFETIME,
+                                TemporalConfigSnapshot.MAX_AFTERIMAGE_LIFETIME);
+        AFTERIMAGE_OBSERVER_RADIUS =
+                serverBuilder
+                        .comment("Maximum distance at which players receive afterimage anchors.")
+                        .defineInRange(
+                                "afterimageObserverRadius",
+                                TemporalConfigSnapshot.defaults().afterimageObserverRadius(),
+                                TemporalConfigSnapshot.MIN_AFTERIMAGE_OBSERVER_RADIUS,
+                                TemporalConfigSnapshot.MAX_AFTERIMAGE_OBSERVER_RADIUS);
         serverBuilder.pop();
 
         serverBuilder.push("phantomCombat");
@@ -184,6 +212,18 @@ public final class TimeEngineConfig {
 
     public static int ghostFrameIntervalTicks() {
         return GHOST_FRAME_INTERVAL_TICKS.get();
+    }
+
+    public static int afterimageIntervalTicks() {
+        return AFTERIMAGE_INTERVAL_TICKS.get();
+    }
+
+    public static int afterimageLifetimeTicks() {
+        return AFTERIMAGE_LIFETIME_TICKS.get();
+    }
+
+    public static double afterimageObserverRadius() {
+        return AFTERIMAGE_OBSERVER_RADIUS.get();
     }
 
     public static double phantomAttackReach() {

@@ -33,6 +33,9 @@ public final class TemporalConfigScreen extends Screen {
     private EditBox snapshotHistoryTicks;
     private EditBox maxTrackedEntities;
     private EditBox ghostFrameIntervalTicks;
+    private EditBox afterimageIntervalTicks;
+    private EditBox afterimageLifetimeTicks;
+    private EditBox afterimageObserverRadius;
     private EditBox phantomAttackReach;
     private EditBox phantomDamageMultiplier;
     private EditBox phantomAttackCooldownTicks;
@@ -85,36 +88,58 @@ public final class TemporalConfigScreen extends Screen {
                             snapshotPlayersAlwaysValue = !snapshotPlayersAlwaysValue;
                             updateBooleanButton(button, snapshotPlayersAlwaysValue);
                         });
-
         ghostFrameIntervalTicks =
-                field("frame_interval", current.ghostFrameIntervalTicks(), rightX, startY);
+                field(
+                        "frame_interval",
+                        current.ghostFrameIntervalTicks(),
+                        leftX,
+                        startY + ROW_HEIGHT * 7);
+
+        afterimageIntervalTicks =
+                field("afterimage_interval", current.afterimageIntervalTicks(), rightX, startY);
+        afterimageLifetimeTicks =
+                field(
+                        "afterimage_lifetime",
+                        current.afterimageLifetimeTicks(),
+                        rightX,
+                        startY + ROW_HEIGHT);
+        afterimageObserverRadius =
+                field(
+                        "afterimage_radius",
+                        current.afterimageObserverRadius(),
+                        rightX,
+                        startY + ROW_HEIGHT * 2);
         phantomAttackReach =
-                field("attack_reach", current.phantomAttackReach(), rightX, startY + ROW_HEIGHT);
+                field(
+                        "attack_reach",
+                        current.phantomAttackReach(),
+                        rightX,
+                        startY + ROW_HEIGHT * 3);
         phantomDamageMultiplier =
                 field(
                         "damage_multiplier",
                         current.phantomDamageMultiplier(),
                         rightX,
-                        startY + ROW_HEIGHT * 2);
+                        startY + ROW_HEIGHT * 4);
         phantomAttackCooldownTicks =
                 field(
                         "attack_cooldown",
                         current.phantomAttackCooldownTicks(),
                         rightX,
-                        startY + ROW_HEIGHT * 3);
+                        startY + ROW_HEIGHT * 5);
         phantomAllowedHitTickDrift =
                 field(
                         "tick_drift",
                         current.phantomAllowedHitTickDrift(),
                         rightX,
-                        startY + ROW_HEIGHT * 4);
+                        startY + ROW_HEIGHT * 6);
         diagnosticLoggingValue = current.diagnosticLogging();
         diagnosticLogging =
                 booleanButton(
                         "diagnostic_logging",
                         diagnosticLoggingValue,
                         rightX,
-                        startY + ROW_HEIGHT * 5,
+                        startY + ROW_HEIGHT * 7,
                         button -> {
                             diagnosticLoggingValue = !diagnosticLoggingValue;
                             updateBooleanButton(button, diagnosticLoggingValue);
@@ -222,6 +247,9 @@ public final class TemporalConfigScreen extends Screen {
                 Integer.parseInt(maxTrackedEntities.getValue()),
                 snapshotPlayersAlwaysValue,
                 Integer.parseInt(ghostFrameIntervalTicks.getValue()),
+                Integer.parseInt(afterimageIntervalTicks.getValue()),
+                Integer.parseInt(afterimageLifetimeTicks.getValue()),
+                Double.parseDouble(afterimageObserverRadius.getValue()),
                 Double.parseDouble(phantomAttackReach.getValue()),
                 Double.parseDouble(phantomDamageMultiplier.getValue()),
                 Integer.parseInt(phantomAttackCooldownTicks.getValue()),
@@ -236,6 +264,9 @@ public final class TemporalConfigScreen extends Screen {
         snapshotHistoryTicks.setValue(Integer.toString(snapshot.snapshotHistoryTicks()));
         maxTrackedEntities.setValue(Integer.toString(snapshot.maxTrackedEntities()));
         ghostFrameIntervalTicks.setValue(Integer.toString(snapshot.ghostFrameIntervalTicks()));
+        afterimageIntervalTicks.setValue(Integer.toString(snapshot.afterimageIntervalTicks()));
+        afterimageLifetimeTicks.setValue(Integer.toString(snapshot.afterimageLifetimeTicks()));
+        afterimageObserverRadius.setValue(Double.toString(snapshot.afterimageObserverRadius()));
         phantomAttackReach.setValue(Double.toString(snapshot.phantomAttackReach()));
         phantomDamageMultiplier.setValue(Double.toString(snapshot.phantomDamageMultiplier()));
         phantomAttackCooldownTicks.setValue(
