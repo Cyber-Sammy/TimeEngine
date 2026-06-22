@@ -61,6 +61,9 @@ final class TemporalInterceptResolver {
         if (previousSnapshot.isEmpty()) {
             return;
         }
+        if (!hasContinuousDimension(previousSnapshot.orElseThrow(), currentSnapshot)) {
+            return;
+        }
         evaluateTargetPath(
                 owner,
                 session,
@@ -170,13 +173,32 @@ final class TemporalInterceptResolver {
             return false;
         }
 
-        target.teleportTo(
-                safeSnapshot.position().x, safeSnapshot.position().y, safeSnapshot.position().z);
-        target.setYRot(safeSnapshot.yRot());
-        target.setXRot(safeSnapshot.xRot());
+        teleport(level, target, safeSnapshot);
         target.setDeltaMovement(Vec3.ZERO);
         target.fallDistance = 0.0F;
         return true;
+    }
+
+    private static void teleport(ServerLevel level, Entity target, EntitySnapshot safeSnapshot) {
+        Vec3 position = safeSnapshot.position();
+        if (target instanceof ServerPlayer player) {
+            player.teleportTo(
+                    level,
+                    position.x,
+                    position.y,
+                    position.z,
+                    safeSnapshot.yRot(),
+                    safeSnapshot.xRot());
+            return;
+        }
+        target.teleportTo(position.x, position.y, position.z);
+        target.setYRot(safeSnapshot.yRot());
+        target.setXRot(safeSnapshot.xRot());
+    }
+
+    private static boolean hasContinuousDimension(
+            EntitySnapshot previousSnapshot, EntitySnapshot currentSnapshot) {
+        return previousSnapshot.dimension().equals(currentSnapshot.dimension());
     }
 
     private static boolean isSupportedTarget(ServerPlayer owner, Entity target) {

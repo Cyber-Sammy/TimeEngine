@@ -60,6 +60,9 @@ public final class TemporalServerEvents {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
+        if (event.isCanceled()) {
+            return;
+        }
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
@@ -79,7 +82,7 @@ public final class TemporalServerEvents {
             return;
         }
         TemporalInterceptManager.getInstance()
-                .recordPlacement(player, event.getPos(), event.getPlacedBlock());
+                .recordPlacement(player, event.getPos(), level.getBlockState(event.getPos()));
     }
 
     @SubscribeEvent
