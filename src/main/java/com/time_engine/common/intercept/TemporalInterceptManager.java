@@ -1,5 +1,9 @@
 package com.time_engine.common.intercept;
 
+import com.time_engine.common.policy.TemporalPolicy.Decision;
+import com.time_engine.common.policy.TemporalPolicy.Operation;
+import com.time_engine.common.policy.TemporalPolicyDefaults;
+import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TimeEngineConfig;
@@ -14,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -33,7 +38,6 @@ public final class TemporalInterceptManager {
         if (!TimeEngineConfig.temporalInterceptEnabled()) {
             return;
         }
-
         TemporalSessionManager sessionManager = TemporalSessionManager.getInstance();
         Optional<TemporalSession> sessionResult = sessionManager.getSession(player);
         if (sessionResult.isEmpty()) {
@@ -57,13 +61,17 @@ public final class TemporalInterceptManager {
         if (record.isEmpty()) {
             return;
         }
+        PlacedBlockRecord placedBlock = record.orElseThrow();
+        if (!shouldRecordBlock(placedBlock)) {
+            return;
+        }
 
         double perceivedTick = sessionManager.getPerceivedTick(session, serverTick);
         TemporalInterceptSessionState state =
                 statesBySession.computeIfAbsent(
                         session.sessionId(),
                         ignored -> new TemporalInterceptSessionState(perceivedTick));
-        state.add(record.orElseThrow(), TimeEngineConfig.maxTemporalBlocksPerSession());
+        state.add(placedBlock, TimeEngineConfig.maxTemporalBlocksPerSession());
         ModLog.diagnostic(
                 "Recorded temporal block {} for session {} at server tick {}",
                 position,
@@ -98,6 +106,20 @@ public final class TemporalInterceptManager {
             return Optional.of(new InterceptStats(0, 0));
         }
         return Optional.of(new InterceptStats(state.blockCount(), state.interceptedTargetCount()));
+    }
+
+    public boolean isInteractionLocked(ServerLevel level, BlockPos position) {
+        for (TemporalInterceptSessionState state : statesBySession.values()) {
+            for (TemporalInterceptSessionState.TrackedBlock block : state.blocks()) {
+                if (!matchesBlock(level, position, block.record())) {
+                    continue;
+                }
+                if (isInteractionLocked(block.record().blockState())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public void clear() {
@@ -140,6 +162,48 @@ public final class TemporalInterceptManager {
             ServerPlayer player, BlockPos position, double radius) {
         double radiusSquared = radius * radius;
         return player.position().distanceToSqr(Vec3.atCenterOf(position)) <= radiusSquared;
+    }
+
+    private static boolean shouldRecordBlock(PlacedBlockRecord record) {
+        BlockState blockState = record.blockState();
+        if (isInteractionLocked(blockState)) {
+            return true;
+        }
+        if (record.collisionBoxes().isEmpty()) {
+            return false;
+        }
+        TemporalPolicyResolver resolver = TemporalPolicyResolver.getInstance();
+        Decision intercept =
+                resolver.resolveBlock(
+                                blockState,
+                                Operation.TEMPORAL_INTERCEPT,
+                                TemporalPolicyDefaults.interceptBlock())
+                        .decision();
+        if (intercept == Decision.ALLOW) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isInteractionLocked(BlockState blockState) {
+        return TemporalPolicyResolver.getInstance()
+                        .resolveBlock(
+                                blockState,
+                                Operation.INTERACTION,
+                                TemporalPolicyDefaults.interaction())
+                        .decision()
+                == Decision.LOCK_INTERACTION;
+    }
+
+    private static boolean matchesBlock(
+            ServerLevel level, BlockPos position, PlacedBlockRecord record) {
+        if (!record.dimension().equals(level.dimension())) {
+            return false;
+        }
+        if (!record.position().equals(position)) {
+            return false;
+        }
+        return record.stillExists(level);
     }
 
     public record InterceptStats(int trackedBlocks, int interceptedTargets) {}

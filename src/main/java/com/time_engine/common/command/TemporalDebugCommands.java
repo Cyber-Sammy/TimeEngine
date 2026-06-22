@@ -5,17 +5,26 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.time_engine.common.intercept.TemporalInterceptManager;
 import com.time_engine.common.network.ModNetworking;
+import com.time_engine.common.policy.TemporalPolicy.Operation;
+import com.time_engine.common.policy.TemporalPolicyDefaults;
+import com.time_engine.common.policy.TemporalPolicyResolver;
+import com.time_engine.common.policy.TemporalPolicyResolver.ReloadStats;
+import com.time_engine.common.policy.TemporalPolicyResolver.ResolvedPolicy;
 import com.time_engine.common.snapshot.SnapshotManager;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TemporalConfigService;
+import com.time_engine.util.ModLog;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.state.BlockState;
 
 public final class TemporalDebugCommands {
     private TemporalDebugCommands() {}
@@ -39,7 +48,38 @@ public final class TemporalDebugCommands {
         root.then(
                 Commands.literal("intercepts")
                         .executes(context -> showIntercepts(context.getSource())));
+        root.then(createPoliciesCommand());
         dispatcher.register(root);
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> createPoliciesCommand() {
+        LiteralArgumentBuilder<CommandSourceStack> policies =
+                Commands.literal("policies")
+                        .executes(context -> showPolicyStats(context.getSource()));
+        policies.then(
+                Commands.literal("reload")
+                        .executes(context -> reloadPolicies(context.getSource())));
+        policies.then(
+                Commands.literal("entity")
+                        .then(
+                                Commands.argument("target", EntityArgument.entity())
+                                        .executes(
+                                                context ->
+                                                        showEntityPolicy(
+                                                                context.getSource(),
+                                                                EntityArgument.getEntity(
+                                                                        context, "target")))));
+        policies.then(
+                Commands.literal("block")
+                        .then(
+                                Commands.argument("position", BlockPosArgument.blockPos())
+                                        .executes(
+                                                context ->
+                                                        showBlockPolicy(
+                                                                context.getSource(),
+                                                                BlockPosArgument.getLoadedBlockPos(
+                                                                        context, "position")))));
+        return policies;
     }
 
     private static int openConfig(CommandSourceStack source) throws CommandSyntaxException {
@@ -139,6 +179,90 @@ public final class TemporalDebugCommands {
                 interceptStats.trackedBlocks(),
                 interceptStats.interceptedTargets());
         return 1;
+    }
+
+    private static int showPolicyStats(CommandSourceStack source) {
+        ReloadStats stats = TemporalPolicyResolver.getInstance().stats();
+        sendSuccess(
+                source,
+                "Time Engine policies: loaded=%d, rejected=%d, generation=%d",
+                stats.loadedPolicies(),
+                stats.rejectedPolicies(),
+                stats.generation());
+        return 1;
+    }
+
+    private static int reloadPolicies(CommandSourceStack source) {
+        var server = source.getServer();
+        source.sendSuccess(() -> Component.literal("Time Engine: reloading datapacks"), false);
+        server.reloadResources(server.getPackRepository().getSelectedIds())
+                .whenComplete(
+                        (ignored, error) ->
+                                server.execute(() -> reportPolicyReload(source, error)));
+        return 1;
+    }
+
+    private static void reportPolicyReload(CommandSourceStack source, Throwable error) {
+        if (error != null) {
+            ModLog.error("Datapack reload requested by Time Engine failed", error);
+            source.sendFailure(Component.literal("Time Engine: datapack reload failed"));
+            return;
+        }
+        ReloadStats stats = TemporalPolicyResolver.getInstance().stats();
+        sendSuccess(
+                source,
+                "Time Engine policies reloaded: loaded=%d, rejected=%d",
+                stats.loadedPolicies(),
+                stats.rejectedPolicies());
+    }
+
+    private static int showEntityPolicy(CommandSourceStack source, Entity target) {
+        TemporalPolicyResolver resolver = TemporalPolicyResolver.getInstance();
+        ResolvedPolicy snapshot =
+                resolver.resolveEntity(
+                        target, Operation.SNAPSHOT, TemporalPolicyDefaults.snapshot(target));
+        ResolvedPolicy combat =
+                resolver.resolveEntity(
+                        target, Operation.PHANTOM_COMBAT, TemporalPolicyDefaults.phantomCombat());
+        ResolvedPolicy intercept =
+                resolver.resolveEntity(
+                        target,
+                        Operation.TEMPORAL_INTERCEPT,
+                        TemporalPolicyDefaults.interceptEntity(target));
+        sendSuccess(
+                source,
+                "Time Engine entity policy for %s: snapshot=%s, combat=%s, intercept=%s",
+                target.getName().getString(),
+                describe(snapshot),
+                describe(combat),
+                describe(intercept));
+        return 1;
+    }
+
+    private static int showBlockPolicy(
+            CommandSourceStack source, net.minecraft.core.BlockPos position) {
+        BlockState blockState = source.getLevel().getBlockState(position);
+        TemporalPolicyResolver resolver = TemporalPolicyResolver.getInstance();
+        ResolvedPolicy intercept =
+                resolver.resolveBlock(
+                        blockState,
+                        Operation.TEMPORAL_INTERCEPT,
+                        TemporalPolicyDefaults.interceptBlock());
+        ResolvedPolicy interaction =
+                resolver.resolveBlock(
+                        blockState, Operation.INTERACTION, TemporalPolicyDefaults.interaction());
+        sendSuccess(
+                source,
+                "Time Engine block policy at %s: intercept=%s, interaction=%s",
+                position.toShortString(),
+                describe(intercept),
+                describe(interaction));
+        return 1;
+    }
+
+    private static String describe(ResolvedPolicy policy) {
+        String source = policy.policyId().map(Object::toString).orElse("fallback");
+        return policy.decision().name().toLowerCase(Locale.ROOT) + "[" + source + "]";
     }
 
     private static void sendSuccess(CommandSourceStack source, String format, Object... arguments) {

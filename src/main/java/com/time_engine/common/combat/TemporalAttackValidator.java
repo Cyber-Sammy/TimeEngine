@@ -1,5 +1,9 @@
 package com.time_engine.common.combat;
 
+import com.time_engine.common.policy.TemporalPolicy.Decision;
+import com.time_engine.common.policy.TemporalPolicy.Operation;
+import com.time_engine.common.policy.TemporalPolicyDefaults;
+import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.snapshot.EntitySnapshot;
 import com.time_engine.common.snapshot.SnapshotManager;
 import com.time_engine.common.temporal.TemporalSession;
@@ -50,6 +54,9 @@ public final class TemporalAttackValidator {
         }
         if (!target.isAttackable()) {
             return ValidationResult.rejected(RejectionReason.TARGET_NOT_ATTACKABLE);
+        }
+        if (!isAllowedByPolicy(target)) {
+            return ValidationResult.rejected(RejectionReason.POLICY_REJECTED);
         }
 
         TemporalSession session = sessionResult.orElseThrow();
@@ -133,12 +140,23 @@ public final class TemporalAttackValidator {
                 TimeEngineConfig.phantomAllowedHitTickDrift());
     }
 
+    private static boolean isAllowedByPolicy(Entity target) {
+        return TemporalPolicyResolver.getInstance()
+                        .resolveEntity(
+                                target,
+                                Operation.PHANTOM_COMBAT,
+                                TemporalPolicyDefaults.phantomCombat())
+                        .decision()
+                == Decision.ALLOW;
+    }
+
     public enum RejectionReason {
         NONE,
         NO_ACTIVE_SESSION,
         ATTACK_COOLDOWN,
         TARGET_NOT_FOUND,
         TARGET_NOT_ATTACKABLE,
+        POLICY_REJECTED,
         SNAPSHOT_NOT_FOUND,
         INVALID_SNAPSHOT,
         RAY_MISSED_HISTORICAL_BOUNDS,
