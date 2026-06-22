@@ -15,7 +15,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class TemporalConfigScreen extends Screen {
     private static final int FIELD_WIDTH = 90;
-    private static final int ROW_HEIGHT = 26;
+    private static final int ROW_HEIGHT = 22;
     private static final int SUCCESS_COLOR = 0xFF55FF55;
     private static final int ERROR_COLOR = 0xFFFF5555;
     private static final int INFO_COLOR = 0xFFAAAAAA;
@@ -36,14 +36,19 @@ public final class TemporalConfigScreen extends Screen {
     private EditBox afterimageIntervalTicks;
     private EditBox afterimageLifetimeTicks;
     private EditBox afterimageObserverRadius;
+    private EditBox maxTemporalBlocksPerSession;
+    private EditBox maxInterceptCorrectionDistance;
     private EditBox phantomAttackReach;
     private EditBox phantomDamageMultiplier;
     private EditBox phantomAttackCooldownTicks;
     private EditBox phantomAllowedHitTickDrift;
     private Button snapshotPlayersAlways;
+    private Button temporalInterceptEnabled;
     private Button diagnosticLogging;
     private boolean snapshotPlayersAlwaysValue;
+    private boolean temporalInterceptEnabledValue;
     private boolean diagnosticLoggingValue;
+    private int footerY;
 
     private TemporalConfigScreen(TemporalConfigPayload payload) {
         super(Component.translatable("screen.time_engine.config.title"));
@@ -67,7 +72,7 @@ public final class TemporalConfigScreen extends Screen {
         fieldRows.clear();
         int leftX = width / 2 - 280;
         int rightX = width / 2 + 10;
-        int startY = 45;
+        int startY = 30;
 
         durationTicks = field("duration", current.durationTicks(), leftX, startY);
         cooldownTicks = field("cooldown", current.cooldownTicks(), leftX, startY + ROW_HEIGHT);
@@ -94,58 +99,82 @@ public final class TemporalConfigScreen extends Screen {
                         current.ghostFrameIntervalTicks(),
                         leftX,
                         startY + ROW_HEIGHT * 7);
-
         afterimageIntervalTicks =
-                field("afterimage_interval", current.afterimageIntervalTicks(), rightX, startY);
+                field(
+                        "afterimage_interval",
+                        current.afterimageIntervalTicks(),
+                        leftX,
+                        startY + ROW_HEIGHT * 8);
         afterimageLifetimeTicks =
                 field(
                         "afterimage_lifetime",
                         current.afterimageLifetimeTicks(),
-                        rightX,
-                        startY + ROW_HEIGHT);
+                        leftX,
+                        startY + ROW_HEIGHT * 9);
+
         afterimageObserverRadius =
+                field("afterimage_radius", current.afterimageObserverRadius(), rightX, startY);
+        temporalInterceptEnabledValue = current.temporalInterceptEnabled();
+        temporalInterceptEnabled =
+                booleanButton(
+                        "intercept_enabled",
+                        temporalInterceptEnabledValue,
+                        rightX,
+                        startY + ROW_HEIGHT,
+                        button -> {
+                            temporalInterceptEnabledValue = !temporalInterceptEnabledValue;
+                            updateBooleanButton(button, temporalInterceptEnabledValue);
+                        });
+        maxTemporalBlocksPerSession =
                 field(
-                        "afterimage_radius",
-                        current.afterimageObserverRadius(),
+                        "intercept_max_blocks",
+                        current.maxTemporalBlocksPerSession(),
                         rightX,
                         startY + ROW_HEIGHT * 2);
+        maxInterceptCorrectionDistance =
+                field(
+                        "intercept_max_distance",
+                        current.maxInterceptCorrectionDistance(),
+                        rightX,
+                        startY + ROW_HEIGHT * 3);
         phantomAttackReach =
                 field(
                         "attack_reach",
                         current.phantomAttackReach(),
                         rightX,
-                        startY + ROW_HEIGHT * 3);
+                        startY + ROW_HEIGHT * 4);
         phantomDamageMultiplier =
                 field(
                         "damage_multiplier",
                         current.phantomDamageMultiplier(),
                         rightX,
-                        startY + ROW_HEIGHT * 4);
+                        startY + ROW_HEIGHT * 5);
         phantomAttackCooldownTicks =
                 field(
                         "attack_cooldown",
                         current.phantomAttackCooldownTicks(),
                         rightX,
-                        startY + ROW_HEIGHT * 5);
+                        startY + ROW_HEIGHT * 6);
         phantomAllowedHitTickDrift =
                 field(
                         "tick_drift",
                         current.phantomAllowedHitTickDrift(),
                         rightX,
-                        startY + ROW_HEIGHT * 6);
+                        startY + ROW_HEIGHT * 7);
         diagnosticLoggingValue = current.diagnosticLogging();
         diagnosticLogging =
                 booleanButton(
                         "diagnostic_logging",
                         diagnosticLoggingValue,
                         rightX,
-                        startY + ROW_HEIGHT * 7,
+                        startY + ROW_HEIGHT * 8,
                         button -> {
                             diagnosticLoggingValue = !diagnosticLoggingValue;
                             updateBooleanButton(button, diagnosticLoggingValue);
                         });
 
-        int buttonsY = startY + ROW_HEIGHT * 8;
+        int buttonsY = startY + ROW_HEIGHT * 10;
+        footerY = buttonsY + 28;
         addRenderableWidget(
                 Button.builder(
                                 Component.translatable("screen.time_engine.config.apply"),
@@ -179,12 +208,12 @@ public final class TemporalConfigScreen extends Screen {
                                 row.y + 6,
                                 0xFFFFFFFF,
                                 false));
-        graphics.drawCenteredString(font, status, width / 2, 282, statusColor);
+        graphics.drawCenteredString(font, status, width / 2, footerY, statusColor);
         graphics.drawCenteredString(
                 font,
                 Component.translatable("screen.time_engine.config.notice"),
                 width / 2,
-                300,
+                footerY + 18,
                 INFO_COLOR);
     }
 
@@ -250,6 +279,9 @@ public final class TemporalConfigScreen extends Screen {
                 Integer.parseInt(afterimageIntervalTicks.getValue()),
                 Integer.parseInt(afterimageLifetimeTicks.getValue()),
                 Double.parseDouble(afterimageObserverRadius.getValue()),
+                temporalInterceptEnabledValue,
+                Integer.parseInt(maxTemporalBlocksPerSession.getValue()),
+                Double.parseDouble(maxInterceptCorrectionDistance.getValue()),
                 Double.parseDouble(phantomAttackReach.getValue()),
                 Double.parseDouble(phantomDamageMultiplier.getValue()),
                 Integer.parseInt(phantomAttackCooldownTicks.getValue()),
@@ -267,14 +299,20 @@ public final class TemporalConfigScreen extends Screen {
         afterimageIntervalTicks.setValue(Integer.toString(snapshot.afterimageIntervalTicks()));
         afterimageLifetimeTicks.setValue(Integer.toString(snapshot.afterimageLifetimeTicks()));
         afterimageObserverRadius.setValue(Double.toString(snapshot.afterimageObserverRadius()));
+        maxTemporalBlocksPerSession.setValue(
+                Integer.toString(snapshot.maxTemporalBlocksPerSession()));
+        maxInterceptCorrectionDistance.setValue(
+                Double.toString(snapshot.maxInterceptCorrectionDistance()));
         phantomAttackReach.setValue(Double.toString(snapshot.phantomAttackReach()));
         phantomDamageMultiplier.setValue(Double.toString(snapshot.phantomDamageMultiplier()));
         phantomAttackCooldownTicks.setValue(
                 Integer.toString(snapshot.phantomAttackCooldownTicks()));
         phantomAllowedHitTickDrift.setValue(Double.toString(snapshot.phantomAllowedHitTickDrift()));
         snapshotPlayersAlwaysValue = snapshot.snapshotPlayersAlways();
+        temporalInterceptEnabledValue = snapshot.temporalInterceptEnabled();
         diagnosticLoggingValue = snapshot.diagnosticLogging();
         updateBooleanButton(snapshotPlayersAlways, snapshotPlayersAlwaysValue);
+        updateBooleanButton(temporalInterceptEnabled, temporalInterceptEnabledValue);
         updateBooleanButton(diagnosticLogging, diagnosticLoggingValue);
         status = Component.translatable("screen.time_engine.config.defaults_loaded").getString();
         statusColor = INFO_COLOR;

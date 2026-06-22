@@ -3,6 +3,7 @@ package com.time_engine.common.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.time_engine.common.intercept.TemporalInterceptManager;
 import com.time_engine.common.network.ModNetworking;
 import com.time_engine.common.snapshot.SnapshotManager;
 import com.time_engine.common.temporal.TemporalSession;
@@ -35,6 +36,9 @@ public final class TemporalDebugCommands {
                                                                 EntityArgument.getPlayer(
                                                                         context, "player")))));
         root.then(Commands.literal("config").executes(context -> openConfig(context.getSource())));
+        root.then(
+                Commands.literal("intercepts")
+                        .executes(context -> showIntercepts(context.getSource())));
         dispatcher.register(root);
     }
 
@@ -116,6 +120,24 @@ public final class TemporalDebugCommands {
                 buffer.capacity(),
                 buffer.latestSnapshotTick(),
                 hasInterpolatedSnapshot);
+        return 1;
+    }
+
+    private static int showIntercepts(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        Optional<TemporalInterceptManager.InterceptStats> stats =
+                TemporalInterceptManager.getInstance().getStats(player);
+        if (stats.isEmpty()) {
+            source.sendFailure(Component.literal("Time Engine: no active temporal session"));
+            return 0;
+        }
+
+        TemporalInterceptManager.InterceptStats interceptStats = stats.orElseThrow();
+        sendSuccess(
+                source,
+                "Time Engine intercepts: trackedBlocks=%d, interceptedTargets=%d",
+                interceptStats.trackedBlocks(),
+                interceptStats.interceptedTargets());
         return 1;
     }
 

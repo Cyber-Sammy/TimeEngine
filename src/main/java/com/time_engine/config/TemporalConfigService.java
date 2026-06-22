@@ -37,6 +37,11 @@ public final class TemporalConfigService {
         TimeEngineConfig.AFTERIMAGE_INTERVAL_TICKS.set(requested.afterimageIntervalTicks());
         TimeEngineConfig.AFTERIMAGE_LIFETIME_TICKS.set(requested.afterimageLifetimeTicks());
         TimeEngineConfig.AFTERIMAGE_OBSERVER_RADIUS.set(requested.afterimageObserverRadius());
+        TimeEngineConfig.TEMPORAL_INTERCEPT_ENABLED.set(requested.temporalInterceptEnabled());
+        TimeEngineConfig.MAX_TEMPORAL_BLOCKS_PER_SESSION.set(
+                requested.maxTemporalBlocksPerSession());
+        TimeEngineConfig.MAX_INTERCEPT_CORRECTION_DISTANCE.set(
+                requested.maxInterceptCorrectionDistance());
         TimeEngineConfig.PHANTOM_ATTACK_REACH.set(requested.phantomAttackReach());
         TimeEngineConfig.PHANTOM_DAMAGE_MULTIPLIER.set(requested.phantomDamageMultiplier());
         TimeEngineConfig.PHANTOM_ATTACK_COOLDOWN_TICKS.set(requested.phantomAttackCooldownTicks());

@@ -18,6 +18,9 @@ public record TemporalConfigSnapshot(
         int afterimageIntervalTicks,
         int afterimageLifetimeTicks,
         double afterimageObserverRadius,
+        boolean temporalInterceptEnabled,
+        int maxTemporalBlocksPerSession,
+        double maxInterceptCorrectionDistance,
         double phantomAttackReach,
         double phantomDamageMultiplier,
         int phantomAttackCooldownTicks,
@@ -42,6 +45,10 @@ public record TemporalConfigSnapshot(
     public static final int MAX_AFTERIMAGE_LIFETIME = 200;
     public static final double MIN_AFTERIMAGE_OBSERVER_RADIUS = 1.0D;
     public static final double MAX_AFTERIMAGE_OBSERVER_RADIUS = 256.0D;
+    public static final int MIN_TEMPORAL_BLOCKS = 1;
+    public static final int MAX_TEMPORAL_BLOCKS = 256;
+    public static final double MIN_INTERCEPT_CORRECTION_DISTANCE = 1.0D;
+    public static final double MAX_INTERCEPT_CORRECTION_DISTANCE = 64.0D;
     public static final double MIN_ATTACK_REACH = 1.0D;
     public static final double MAX_ATTACK_REACH = 16.0D;
     public static final double MIN_DAMAGE_MULTIPLIER = 0.0D;
@@ -65,6 +72,9 @@ public record TemporalConfigSnapshot(
                 TimeEngineConfig.afterimageIntervalTicks(),
                 TimeEngineConfig.afterimageLifetimeTicks(),
                 TimeEngineConfig.afterimageObserverRadius(),
+                TimeEngineConfig.temporalInterceptEnabled(),
+                TimeEngineConfig.maxTemporalBlocksPerSession(),
+                TimeEngineConfig.maxInterceptCorrectionDistance(),
                 TimeEngineConfig.phantomAttackReach(),
                 TimeEngineConfig.phantomDamageMultiplier(),
                 TimeEngineConfig.phantomAttackCooldownTicks(),
@@ -85,6 +95,9 @@ public record TemporalConfigSnapshot(
                 2,
                 12,
                 64.0D,
+                true,
+                32,
+                16.0D,
                 4.5D,
                 1.0D,
                 10,
@@ -137,6 +150,16 @@ public record TemporalConfigSnapshot(
                                 MIN_AFTERIMAGE_OBSERVER_RADIUS,
                                 MAX_AFTERIMAGE_OBSERVER_RADIUS),
                         validateRange(
+                                "maxTemporalBlocksPerSession",
+                                maxTemporalBlocksPerSession,
+                                MIN_TEMPORAL_BLOCKS,
+                                MAX_TEMPORAL_BLOCKS),
+                        validateRange(
+                                "maxInterceptCorrectionDistance",
+                                maxInterceptCorrectionDistance,
+                                MIN_INTERCEPT_CORRECTION_DISTANCE,
+                                MAX_INTERCEPT_CORRECTION_DISTANCE),
+                        validateRange(
                                 "phantomAttackReach",
                                 phantomAttackReach,
                                 MIN_ATTACK_REACH,
@@ -177,6 +200,9 @@ public record TemporalConfigSnapshot(
         buffer.writeVarInt(afterimageIntervalTicks);
         buffer.writeVarInt(afterimageLifetimeTicks);
         buffer.writeDouble(afterimageObserverRadius);
+        buffer.writeBoolean(temporalInterceptEnabled);
+        buffer.writeVarInt(maxTemporalBlocksPerSession);
+        buffer.writeDouble(maxInterceptCorrectionDistance);
         buffer.writeDouble(phantomAttackReach);
         buffer.writeDouble(phantomDamageMultiplier);
         buffer.writeVarInt(phantomAttackCooldownTicks);
@@ -195,6 +221,9 @@ public record TemporalConfigSnapshot(
                 buffer.readBoolean(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
+                buffer.readVarInt(),
+                buffer.readDouble(),
+                buffer.readBoolean(),
                 buffer.readVarInt(),
                 buffer.readDouble(),
                 buffer.readDouble(),

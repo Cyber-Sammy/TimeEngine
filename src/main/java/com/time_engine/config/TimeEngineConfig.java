@@ -19,6 +19,9 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.IntValue AFTERIMAGE_INTERVAL_TICKS;
     public static final ModConfigSpec.IntValue AFTERIMAGE_LIFETIME_TICKS;
     public static final ModConfigSpec.DoubleValue AFTERIMAGE_OBSERVER_RADIUS;
+    public static final ModConfigSpec.BooleanValue TEMPORAL_INTERCEPT_ENABLED;
+    public static final ModConfigSpec.IntValue MAX_TEMPORAL_BLOCKS_PER_SESSION;
+    public static final ModConfigSpec.DoubleValue MAX_INTERCEPT_CORRECTION_DISTANCE;
     public static final ModConfigSpec.DoubleValue PHANTOM_ATTACK_REACH;
     public static final ModConfigSpec.DoubleValue PHANTOM_DAMAGE_MULTIPLIER;
     public static final ModConfigSpec.IntValue PHANTOM_ATTACK_COOLDOWN_TICKS;
@@ -138,6 +141,32 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.MAX_AFTERIMAGE_OBSERVER_RADIUS);
         serverBuilder.pop();
 
+        serverBuilder.push("temporalIntercept");
+        TEMPORAL_INTERCEPT_ENABLED =
+                serverBuilder
+                        .comment("Enable limited server-authoritative temporal block intercepts.")
+                        .define(
+                                "enabled",
+                                TemporalConfigSnapshot.defaults().temporalInterceptEnabled());
+        MAX_TEMPORAL_BLOCKS_PER_SESSION =
+                serverBuilder
+                        .comment("Maximum placed temporal obstacles retained per active session.")
+                        .defineInRange(
+                                "maxBlocksPerSession",
+                                TemporalConfigSnapshot.defaults().maxTemporalBlocksPerSession(),
+                                TemporalConfigSnapshot.MIN_TEMPORAL_BLOCKS,
+                                TemporalConfigSnapshot.MAX_TEMPORAL_BLOCKS);
+        MAX_INTERCEPT_CORRECTION_DISTANCE =
+                serverBuilder
+                        .comment(
+                                "Maximum distance a real entity may be position-corrected by an intercept.")
+                        .defineInRange(
+                                "maxCorrectionDistance",
+                                TemporalConfigSnapshot.defaults().maxInterceptCorrectionDistance(),
+                                TemporalConfigSnapshot.MIN_INTERCEPT_CORRECTION_DISTANCE,
+                                TemporalConfigSnapshot.MAX_INTERCEPT_CORRECTION_DISTANCE);
+        serverBuilder.pop();
+
         serverBuilder.push("phantomCombat");
         PHANTOM_ATTACK_REACH =
                 serverBuilder
@@ -224,6 +253,18 @@ public final class TimeEngineConfig {
 
     public static double afterimageObserverRadius() {
         return AFTERIMAGE_OBSERVER_RADIUS.get();
+    }
+
+    public static boolean temporalInterceptEnabled() {
+        return TEMPORAL_INTERCEPT_ENABLED.get();
+    }
+
+    public static int maxTemporalBlocksPerSession() {
+        return MAX_TEMPORAL_BLOCKS_PER_SESSION.get();
+    }
+
+    public static double maxInterceptCorrectionDistance() {
+        return MAX_INTERCEPT_CORRECTION_DISTANCE.get();
     }
 
     public static double phantomAttackReach() {

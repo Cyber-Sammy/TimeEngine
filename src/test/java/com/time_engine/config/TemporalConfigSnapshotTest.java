@@ -30,6 +30,9 @@ class TemporalConfigSnapshotTest {
                         defaults.afterimageIntervalTicks(),
                         defaults.afterimageLifetimeTicks(),
                         defaults.afterimageObserverRadius(),
+                        defaults.temporalInterceptEnabled(),
+                        defaults.maxTemporalBlocksPerSession(),
+                        defaults.maxInterceptCorrectionDistance(),
                         defaults.phantomAttackReach(),
                         defaults.phantomDamageMultiplier(),
                         defaults.phantomAttackCooldownTicks(),
@@ -68,6 +71,9 @@ class TemporalConfigSnapshotTest {
                         defaults.afterimageIntervalTicks(),
                         0,
                         defaults.afterimageObserverRadius(),
+                        defaults.temporalInterceptEnabled(),
+                        defaults.maxTemporalBlocksPerSession(),
+                        defaults.maxInterceptCorrectionDistance(),
                         defaults.phantomAttackReach(),
                         defaults.phantomDamageMultiplier(),
                         defaults.phantomAttackCooldownTicks(),
@@ -75,6 +81,36 @@ class TemporalConfigSnapshotTest {
 
         assertEquals(
                 "afterimageLifetimeTicks must be between 1 and 200",
+                invalid.validate().orElseThrow());
+    }
+
+    @Test
+    void rejectsInvalidInterceptCorrectionDistance() {
+        TemporalConfigSnapshot defaults = TemporalConfigSnapshot.defaults();
+        TemporalConfigSnapshot invalid =
+                new TemporalConfigSnapshot(
+                        defaults.diagnosticLogging(),
+                        defaults.durationTicks(),
+                        defaults.cooldownTicks(),
+                        defaults.timeScale(),
+                        defaults.radius(),
+                        defaults.snapshotHistoryTicks(),
+                        defaults.maxTrackedEntities(),
+                        defaults.snapshotPlayersAlways(),
+                        defaults.ghostFrameIntervalTicks(),
+                        defaults.afterimageIntervalTicks(),
+                        defaults.afterimageLifetimeTicks(),
+                        defaults.afterimageObserverRadius(),
+                        defaults.temporalInterceptEnabled(),
+                        defaults.maxTemporalBlocksPerSession(),
+                        100.0D,
+                        defaults.phantomAttackReach(),
+                        defaults.phantomDamageMultiplier(),
+                        defaults.phantomAttackCooldownTicks(),
+                        defaults.phantomAllowedHitTickDrift());
+
+        assertEquals(
+                "maxInterceptCorrectionDistance must be between 1.0 and 64.0",
                 invalid.validate().orElseThrow());
     }
 }
