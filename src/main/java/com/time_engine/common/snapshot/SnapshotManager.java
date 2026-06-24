@@ -1,5 +1,9 @@
 package com.time_engine.common.snapshot;
 
+import com.time_engine.common.policy.TemporalPolicy.Decision;
+import com.time_engine.common.policy.TemporalPolicy.Operation;
+import com.time_engine.common.policy.TemporalPolicyDefaults;
+import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TimeEngineConfig;
@@ -17,8 +21,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -48,7 +50,7 @@ public final class SnapshotManager {
         Set<UUID> capturedEntityIds = new HashSet<>();
         if (snapshotPlayersAlways) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                capture(player, currentTick, capturedEntityIds);
+                captureIfTracked(player, true, currentTick, capturedEntityIds);
             }
         }
 
@@ -56,7 +58,7 @@ public final class SnapshotManager {
             ServerPlayer owner = server.getPlayerList().getPlayer(session.ownerPlayerId());
             if (owner != null) {
                 if (!snapshotPlayersAlways) {
-                    capture(owner, currentTick, capturedEntityIds);
+                    captureIfTracked(owner, true, currentTick, capturedEntityIds);
                 }
                 captureNearbyEntities(
                         owner,
@@ -167,6 +169,14 @@ public final class SnapshotManager {
                 .addSnapshot(EntitySnapshot.capture(entity, currentTick));
     }
 
+    private void captureIfTracked(
+            Entity entity, boolean includePlayers, int currentTick, Set<UUID> capturedEntityIds) {
+        if (!shouldTrack(entity, includePlayers)) {
+            return;
+        }
+        capture(entity, currentTick, capturedEntityIds);
+    }
+
     private void resetForCapacity(int configuredCapacity) {
         if (!buffersByEntity.isEmpty()) {
             ModLog.diagnostic(
@@ -179,18 +189,21 @@ public final class SnapshotManager {
     }
 
     private static boolean shouldTrack(Entity entity, boolean includePlayers) {
-        // TODO: Replace the MVP type list with an extensible tracking policy before supporting
-        // other temporal actors.
         if (entity.isRemoved()) {
             return false;
         }
-        if (entity instanceof Mob) {
-            return true;
+        if (shouldExcludePlayer(entity, includePlayers)) {
+            return false;
         }
-        if (entity instanceof Projectile) {
-            return true;
-        }
-        if (!includePlayers) {
+        Decision fallback = TemporalPolicyDefaults.snapshot(entity);
+        return TemporalPolicyResolver.getInstance()
+                        .resolveEntity(entity, Operation.SNAPSHOT, fallback)
+                        .decision()
+                == Decision.ALLOW;
+    }
+
+    private static boolean shouldExcludePlayer(Entity entity, boolean includePlayers) {
+        if (includePlayers) {
             return false;
         }
         return entity instanceof ServerPlayer;

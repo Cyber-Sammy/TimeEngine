@@ -21,9 +21,6 @@ public record PlacedBlockRecord(
     public PlacedBlockRecord {
         position = position.immutable();
         collisionBoxes = List.copyOf(collisionBoxes);
-        if (collisionBoxes.isEmpty()) {
-            throw new IllegalArgumentException("Temporal block must have collision boxes");
-        }
     }
 
     public static Optional<PlacedBlockRecord> create(
@@ -37,7 +34,7 @@ public record PlacedBlockRecord(
                 blockState.getCollisionShape(level, position).toAabbs().stream()
                         .map(box -> box.move(position))
                         .toList();
-        if (collisionBoxes.isEmpty()) {
+        if (blockState.isAir()) {
             return Optional.empty();
         }
         return Optional.of(

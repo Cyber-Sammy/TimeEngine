@@ -1,6 +1,10 @@
 package com.time_engine.common.intercept;
 
 import com.time_engine.common.intercept.TemporalInterceptSessionState.TrackedBlock;
+import com.time_engine.common.policy.TemporalPolicy.Decision;
+import com.time_engine.common.policy.TemporalPolicy.Operation;
+import com.time_engine.common.policy.TemporalPolicyDefaults;
+import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.snapshot.EntitySnapshot;
 import com.time_engine.common.snapshot.SnapshotManager;
 import com.time_engine.common.temporal.TemporalSession;
@@ -15,7 +19,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -151,6 +154,9 @@ final class TemporalInterceptResolver {
         if (block.hasIntercepted(target.getUUID())) {
             return OptionalDouble.empty();
         }
+        if (!isBlockAllowed(block.record())) {
+            return OptionalDouble.empty();
+        }
         return PathCollisionChecker.findFirstCollision(
                 previousSnapshot.boundingBox(),
                 currentSnapshot.boundingBox(),
@@ -217,10 +223,21 @@ final class TemporalInterceptResolver {
         if (target.isVehicle()) {
             return false;
         }
-        if (target instanceof ServerPlayer) {
-            return true;
-        }
-        return target instanceof Mob;
+        Decision fallback = TemporalPolicyDefaults.interceptEntity(target);
+        return TemporalPolicyResolver.getInstance()
+                        .resolveEntity(target, Operation.TEMPORAL_INTERCEPT, fallback)
+                        .decision()
+                == Decision.ALLOW;
+    }
+
+    private static boolean isBlockAllowed(PlacedBlockRecord block) {
+        return TemporalPolicyResolver.getInstance()
+                        .resolveBlock(
+                                block.blockState(),
+                                Operation.TEMPORAL_INTERCEPT,
+                                TemporalPolicyDefaults.interceptBlock())
+                        .decision()
+                == Decision.ALLOW;
     }
 
     private static void showFeedback(ServerLevel level, Vec3 position) {
