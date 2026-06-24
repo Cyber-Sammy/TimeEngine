@@ -98,6 +98,21 @@ class TemporalPolicyParserTest {
                 Decision.LOCK_INTERACTION, policy.decision(Operation.INTERACTION).orElseThrow());
     }
 
+    @Test
+    void rejectsIgnoreForBlockInteraction() {
+        assertThrows(
+                JsonParseException.class,
+                () ->
+                        parse(
+                                """
+                                {
+                                  "target": "block",
+                                  "ids": ["minecraft:chest"],
+                                  "operations": {"interaction": "ignore"}
+                                }
+                                """));
+    }
+
     private static TemporalPolicy parse(String json) {
         return TemporalPolicyParser.parse(POLICY_ID, JsonParser.parseString(json));
     }

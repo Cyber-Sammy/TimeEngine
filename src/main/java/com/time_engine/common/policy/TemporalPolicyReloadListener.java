@@ -8,6 +8,7 @@ import com.time_engine.util.ModLog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -16,9 +17,15 @@ import net.minecraft.util.profiling.ProfilerFiller;
 public final class TemporalPolicyReloadListener extends SimpleJsonResourceReloadListener {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final String DIRECTORY = "time_engine/temporal_policies";
+    private final Runnable runtimeReset;
 
     public TemporalPolicyReloadListener() {
+        this(TemporalPolicyRuntimeState::resetAfterReload);
+    }
+
+    TemporalPolicyReloadListener(Runnable runtimeReset) {
         super(GSON, DIRECTORY);
+        this.runtimeReset = Objects.requireNonNull(runtimeReset, "runtimeReset");
     }
 
     @Override
@@ -38,6 +45,7 @@ public final class TemporalPolicyReloadListener extends SimpleJsonResourceReload
         }
 
         TemporalPolicyResolver.getInstance().replacePolicies(policies, rejectedPolicies);
+        runtimeReset.run();
         ModLog.diagnostic(
                 "Reloaded temporal policies: loaded={}, rejected={}",
                 policies.size(),

@@ -47,12 +47,20 @@ public final class TemporalPolicyParser {
         if (!operation.supports(targetKind)) {
             throw new IllegalArgumentException(operation + " does not support " + targetKind);
         }
-        if (decision != Decision.LOCK_INTERACTION) {
+        if (operation == Operation.INTERACTION) {
+            validateInteractionDecision(decision);
             return;
         }
-        if (operation != Operation.INTERACTION) {
+        if (decision == Decision.LOCK_INTERACTION) {
             throw new IllegalArgumentException(
                     "lock_interaction is only valid for the interaction operation");
+        }
+    }
+
+    private static void validateInteractionDecision(Decision decision) {
+        if (decision == Decision.IGNORE) {
+            throw new IllegalArgumentException(
+                    "interaction supports only allow or lock_interaction");
         }
     }
 

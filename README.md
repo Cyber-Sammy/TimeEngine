@@ -109,9 +109,13 @@ Block operations:
 Supported decisions:
 
 - `allow`: allow the operation.
-- `ignore`: exclude the target from the operation.
+- `ignore`: exclude the target from snapshot, phantom combat or Temporal Intercept processing.
 - `lock_interaction`: temporarily prevent using or breaking a recorded temporal block. This value
   is valid only for the block `interaction` operation.
+
+The block `interaction` operation accepts only `allow` and `lock_interaction`. `allow` explicitly
+leaves interaction unlocked and can override a lower-priority lock rule. `ignore` is rejected for
+this operation because it would otherwise be indistinguishable from `allow`.
 
 Operations omitted from a policy continue searching lower-priority matching policies. If no rule
 defines that operation, the built-in fallback is used.
@@ -197,6 +201,11 @@ Without a matching policy, current defaults remain active:
 
 Invalid policy files are logged and skipped. Valid policies from the same reload are published
 together, so gameplay never observes a partially constructed policy set.
+
+After a successful policy reload, Time Engine clears snapshot history and active Temporal Intercept
+placement state. This prevents ghost frames or obstacle records created under the previous rules
+from surviving the reload. Active temporal sessions remain active; snapshot history begins filling
+again on the next server tick.
 
 ### Diagnostics
 

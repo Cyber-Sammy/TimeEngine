@@ -7,12 +7,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.time_engine.common.policy.TemporalPolicyResolver.ReloadStats;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class TemporalPolicyReloadListenerTest {
-    private final TemporalPolicyReloadListener listener = new TemporalPolicyReloadListener();
+    private final AtomicInteger runtimeResetCount = new AtomicInteger();
+    private final TemporalPolicyReloadListener listener =
+            new TemporalPolicyReloadListener(runtimeResetCount::incrementAndGet);
 
     @AfterEach
     void clearPolicies() {
@@ -47,6 +50,7 @@ class TemporalPolicyReloadListenerTest {
         assertEquals(1, stats.loadedPolicies());
         assertEquals(1, stats.rejectedPolicies());
         assertTrue(stats.generation() > 0);
+        assertEquals(1, runtimeResetCount.get());
     }
 
     private static ResourceLocation location(String path) {
