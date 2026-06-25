@@ -72,7 +72,8 @@ class AfterimageTrailTest {
                         0.0F,
                         0.0F,
                         Pose.STANDING,
-                        new AABB(0.5D, 2.0D, 2.5D, 1.5D, 3.8D, 3.5D));
+                        new AABB(0.5D, 2.0D, 2.5D, 1.5D, 3.8D, 3.5D),
+                        true);
         return new AfterimagePayload(
                 sessionId,
                 serverTick,
