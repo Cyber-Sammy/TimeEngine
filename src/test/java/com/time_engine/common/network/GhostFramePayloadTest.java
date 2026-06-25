@@ -59,13 +59,38 @@ class GhostFramePayloadTest {
     void fallsBackToStandingForUnknownPose() {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            writeState(buffer, "UNKNOWN_FUTURE_POSE");
+            writeState(buffer, "UNKNOWN_FUTURE_POSE", true);
 
             assertEquals(
                     Pose.STANDING, TemporalEntityRenderState.STREAM_CODEC.decode(buffer).pose());
         } finally {
             buffer.release();
         }
+    }
+
+    @Test
+    void codecRoundTripsPhantomCombatFlag() {
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            TemporalEntityRenderState.STREAM_CODEC.encode(
+                    buffer, state(0.0D, 0.0F, Pose.STANDING, false));
+
+            assertEquals(
+                    false,
+                    TemporalEntityRenderState.STREAM_CODEC.decode(buffer).phantomCombatAllowed());
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Test
+    void interpolationKeepsPhantomCombatDisabledWhenEitherFrameDisablesIt() {
+        TemporalEntityRenderState previous = state(0.0D, 0.0F, Pose.STANDING, true);
+        TemporalEntityRenderState current = state(10.0D, 0.0F, Pose.STANDING, false);
+
+        TemporalEntityRenderState interpolated = previous.interpolate(current, 0.5D);
+
+        assertEquals(false, interpolated.phantomCombatAllowed());
     }
 
     private static Pose roundTrip(Pose pose) {
@@ -78,7 +103,8 @@ class GhostFramePayloadTest {
         }
     }
 
-    private static void writeState(FriendlyByteBuf buffer, String poseName) {
+    private static void writeState(
+            FriendlyByteBuf buffer, String poseName, boolean phantomCombatAllowed) {
         buffer.writeUUID(ENTITY_ID);
         buffer.writeDouble(0.0D);
         buffer.writeDouble(2.0D);
@@ -92,15 +118,22 @@ class GhostFramePayloadTest {
         buffer.writeDouble(1.0D);
         buffer.writeDouble(4.0D);
         buffer.writeDouble(4.0D);
+        buffer.writeBoolean(phantomCombatAllowed);
     }
 
     private static TemporalEntityRenderState state(double x, float yRot, Pose pose) {
+        return state(x, yRot, pose, true);
+    }
+
+    private static TemporalEntityRenderState state(
+            double x, float yRot, Pose pose, boolean phantomCombatAllowed) {
         return new TemporalEntityRenderState(
                 ENTITY_ID,
                 new Vec3(x, 2.0D, 3.0D),
                 yRot,
                 0.0F,
                 pose,
-                new AABB(x, 2.0D, 3.0D, x + 1.0D, 4.0D, 4.0D));
+                new AABB(x, 2.0D, 3.0D, x + 1.0D, 4.0D, 4.0D),
+                phantomCombatAllowed);
     }
 }

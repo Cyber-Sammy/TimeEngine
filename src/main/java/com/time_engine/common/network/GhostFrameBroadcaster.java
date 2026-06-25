@@ -44,7 +44,8 @@ public final class GhostFrameBroadcaster {
                             serverTick,
                             perceivedTick,
                             owner.level().dimension().location(),
-                            snapshots));
+                            snapshots,
+                            owner.serverLevel()::getEntity));
             if (serverTick % 100 == 0) {
                 ModLog.diagnostic(
                         "Sent ghost frame for session {} at server tick {} (perceivedTick={}, entities={})",

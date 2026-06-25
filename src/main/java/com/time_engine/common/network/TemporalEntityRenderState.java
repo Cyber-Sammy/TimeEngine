@@ -14,7 +14,13 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public record TemporalEntityRenderState(
-        UUID entityId, Vec3 position, float yRot, float xRot, Pose pose, AABB boundingBox) {
+        UUID entityId,
+        Vec3 position,
+        float yRot,
+        float xRot,
+        Pose pose,
+        AABB boundingBox,
+        boolean phantomCombatAllowed) {
     private static final int MAX_POSE_NAME_LENGTH = 64;
     private static final AtomicBoolean INVALID_POSE_LOGGED = new AtomicBoolean();
 
@@ -29,13 +35,19 @@ public record TemporalEntityRenderState(
     }
 
     public static TemporalEntityRenderState fromSnapshot(EntitySnapshot snapshot) {
+        return fromSnapshot(snapshot, true);
+    }
+
+    public static TemporalEntityRenderState fromSnapshot(
+            EntitySnapshot snapshot, boolean phantomCombatAllowed) {
         return new TemporalEntityRenderState(
                 snapshot.entityId(),
                 snapshot.position(),
                 snapshot.yRot(),
                 snapshot.xRot(),
                 snapshot.pose(),
-                snapshot.boundingBox());
+                snapshot.boundingBox(),
+                phantomCombatAllowed);
     }
 
     public static TemporalEntityRenderState fromEntity(Entity entity) {
@@ -45,7 +57,8 @@ public record TemporalEntityRenderState(
                 entity.getYRot(),
                 entity.getXRot(),
                 entity.getPose(),
-                entity.getBoundingBox());
+                entity.getBoundingBox(),
+                true);
     }
 
     public TemporalEntityRenderState interpolate(TemporalEntityRenderState next, double progress) {
@@ -60,7 +73,8 @@ public record TemporalEntityRenderState(
                 lerpRotation(yRot, next.yRot, amount),
                 lerpRotation(xRot, next.xRot, amount),
                 amount < 1.0D ? pose : next.pose,
-                interpolate(boundingBox, next.boundingBox, amount));
+                interpolate(boundingBox, next.boundingBox, amount),
+                phantomCombatAllowed && next.phantomCombatAllowed);
     }
 
     private static void encode(FriendlyByteBuf buffer, TemporalEntityRenderState state) {
@@ -77,6 +91,7 @@ public record TemporalEntityRenderState(
         buffer.writeDouble(state.boundingBox.maxX);
         buffer.writeDouble(state.boundingBox.maxY);
         buffer.writeDouble(state.boundingBox.maxZ);
+        buffer.writeBoolean(state.phantomCombatAllowed);
     }
 
     private static TemporalEntityRenderState decode(FriendlyByteBuf buffer) {
@@ -93,7 +108,9 @@ public record TemporalEntityRenderState(
                         buffer.readDouble(),
                         buffer.readDouble(),
                         buffer.readDouble());
-        return new TemporalEntityRenderState(entityId, position, yRot, xRot, pose, boundingBox);
+        boolean phantomCombatAllowed = buffer.readBoolean();
+        return new TemporalEntityRenderState(
+                entityId, position, yRot, xRot, pose, boundingBox, phantomCombatAllowed);
     }
 
     private static Pose decodePose(String poseName) {
