@@ -104,6 +104,29 @@ public record TemporalConfigSnapshot(
                 3.0D);
     }
 
+    public TemporalConfigSnapshot withSessionSettings(TemporalSessionSettings settings) {
+        return new TemporalConfigSnapshot(
+                diagnosticLogging,
+                settings.durationTicks(),
+                settings.cooldownTicks(),
+                settings.timeScale(),
+                settings.radius(),
+                snapshotHistoryTicks,
+                maxTrackedEntities,
+                snapshotPlayersAlways,
+                ghostFrameIntervalTicks,
+                afterimageIntervalTicks,
+                afterimageLifetimeTicks,
+                afterimageObserverRadius,
+                temporalInterceptEnabled,
+                maxTemporalBlocksPerSession,
+                maxInterceptCorrectionDistance,
+                phantomAttackReach,
+                phantomDamageMultiplier,
+                phantomAttackCooldownTicks,
+                phantomAllowedHitTickDrift);
+    }
+
     public Optional<String> validate() {
         List<Optional<String>> validations =
                 List.of(

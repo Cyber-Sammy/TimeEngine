@@ -6,6 +6,8 @@ import com.time_engine.common.policy.TemporalPolicyDefaults;
 import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.snapshot.EntitySnapshot;
 import com.time_engine.common.snapshot.SnapshotManager;
+import com.time_engine.common.temporal.TemporalLayerRelation;
+import com.time_engine.common.temporal.TemporalScaleResolver;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TimeEngineConfig;
@@ -60,7 +62,14 @@ public final class TemporalAttackValidator {
         }
 
         TemporalSession session = sessionResult.orElseThrow();
-        double serverPerceivedTick = sessionManager.getPerceivedTick(session, serverTick);
+        TemporalScaleResolver scaleResolver = TemporalScaleResolver.server();
+        TemporalLayerRelation relation = relation(attacker, target, scaleResolver);
+        if (!relation.allowsAttackableGhost()) {
+            return ValidationResult.rejected(RejectionReason.TEMPORAL_RELATION_REJECTED);
+        }
+
+        double serverPerceivedTick =
+                scaleResolver.relativePerceivedTick(session, target, serverTick);
         if (!isValidClientTick(session, clientPerceivedTick, serverPerceivedTick)) {
             return ValidationResult.rejected(RejectionReason.INVALID_CLIENT_TICK);
         }
@@ -150,6 +159,12 @@ public final class TemporalAttackValidator {
                 == Decision.ALLOW;
     }
 
+    private static TemporalLayerRelation relation(
+            ServerPlayer attacker, Entity target, TemporalScaleResolver scaleResolver) {
+        return TemporalLayerRelation.compare(
+                scaleResolver.effectiveScale(attacker), scaleResolver.effectiveScale(target));
+    }
+
     public enum RejectionReason {
         NONE,
         NO_ACTIVE_SESSION,
@@ -161,6 +176,7 @@ public final class TemporalAttackValidator {
         INVALID_SNAPSHOT,
         RAY_MISSED_HISTORICAL_BOUNDS,
         INVALID_CLIENT_TICK,
+        TEMPORAL_RELATION_REJECTED,
         REQUEST_RATE_LIMITED,
         DAMAGE_REJECTED
     }

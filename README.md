@@ -21,6 +21,28 @@ NeoForge generates the configuration files after the first launch:
 
 Set `diagnosticLogging = true` to enable Time Engine lifecycle logs. Warnings and errors remain enabled regardless of this flag.
 
+The `/timeengine config` screen is a development tool. Most values are still global server runtime
+configuration, but session values are intentionally per-player runtime overrides:
+
+- session duration;
+- session cooldown;
+- time scale;
+- session radius.
+
+This allows two test clients to run different temporal layers, for example one player at `0.2` and
+another at `0.5`, without overwriting one shared server default. The override is applied when that
+player starts the next temporal session. Existing active sessions keep the values they started with.
+
+Snapshot history remains a global server setting. It is the shared history window used by ghost
+rendering, phantom combat, Temporal Intercept and diagnostics. Size it for the deepest expected
+session:
+
+```text
+required history ~= durationTicks * (1.0 - timeScale) + safety margin
+```
+
+For example, `durationTicks = 600` and `timeScale = 0.2` needs roughly `500` ticks of history.
+
 ## Debug commands
 
 The commands require permission level 2:
@@ -33,6 +55,38 @@ The commands require permission level 2:
 - `/timeengine policies block <x> <y> <z>` explains the effective block policy and its source.
 - `/timeengine policies reload` performs a full datapack reload and reports policy results.
 - `/timeengine config` opens the live server configuration panel for an authorized player.
+- `/timeengine relation <entity>` explains the temporal relation between the executing player and a target entity.
+
+## Relative temporal layers
+
+Time Engine does not slow the whole server. Temporal advantage is resolved per observer/target pair
+on the server.
+
+Rules:
+
+- Effective time scale `1.0` means normal time.
+- Lower values are stronger/faster temporal states.
+- Equal active time scales are the same temporal layer and do not create attackable ghost AABBs
+  between those players.
+- A faster observer may receive an attackable historical ghost against a slower target.
+- A slower observer does not receive an attackable ghost against a faster target.
+- Afterimages are visual readability feedback and are separate from attackable ghost AABBs.
+
+Examples:
+
+| Observer | Target | Result |
+| --- | --- | --- |
+| `0.2` | `1.0` | observer is faster; attackable ghost can appear |
+| `0.5` | `1.0` | observer is faster; weaker relative delay |
+| `0.2` | `0.5` | observer is faster; relative ghost can appear |
+| `0.5` | `0.2` | target is faster; no attackable ghost |
+| `0.2` | `0.2` | same layer; normal interaction, no attackable ghost |
+
+If a target starts or ends a temporal session while the observer is already active, the server uses
+a segment-aware timeline: normal slowdown before the target's session, relative slowdown during the
+overlap, then normal slowdown again after the target exits. Client hit requests only send hints; the
+server recalculates relation, perceived tick, ray/AABB intersection, reach, cooldown and policy
+checks before applying damage.
 
 ## Temporal policies
 

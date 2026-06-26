@@ -54,6 +54,7 @@ class ClientGhostTargetingTest {
                 0.0F,
                 Pose.STANDING,
                 boundingBox,
+                10.0D,
                 phantomCombatAllowed);
     }
 }

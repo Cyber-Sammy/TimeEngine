@@ -7,6 +7,7 @@ public final class TemporalSession {
     private final UUID ownerPlayerId;
     private final int startTick;
     private final int durationTicks;
+    private final int cooldownTicks;
     private final float timeScale;
     private final double radius;
     private boolean active;
@@ -16,10 +17,14 @@ public final class TemporalSession {
             UUID ownerPlayerId,
             int startTick,
             int durationTicks,
+            int cooldownTicks,
             float timeScale,
             double radius) {
         if (durationTicks <= 0) {
             throw new IllegalArgumentException("durationTicks must be positive");
+        }
+        if (cooldownTicks < 0) {
+            throw new IllegalArgumentException("cooldownTicks must not be negative");
         }
         if (timeScale <= 0.0F) {
             throw new IllegalArgumentException("timeScale must be in the range (0, 1]");
@@ -35,6 +40,7 @@ public final class TemporalSession {
         this.ownerPlayerId = ownerPlayerId;
         this.startTick = startTick;
         this.durationTicks = durationTicks;
+        this.cooldownTicks = cooldownTicks;
         this.timeScale = timeScale;
         this.radius = radius;
         this.active = true;
@@ -54,6 +60,10 @@ public final class TemporalSession {
 
     public int durationTicks() {
         return durationTicks;
+    }
+
+    public int cooldownTicks() {
+        return cooldownTicks;
     }
 
     public float timeScale() {

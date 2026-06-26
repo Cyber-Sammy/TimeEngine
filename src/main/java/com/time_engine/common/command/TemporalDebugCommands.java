@@ -5,12 +5,15 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.time_engine.common.intercept.TemporalInterceptManager;
 import com.time_engine.common.network.ModNetworking;
+import com.time_engine.common.policy.TemporalPolicy.Decision;
 import com.time_engine.common.policy.TemporalPolicy.Operation;
 import com.time_engine.common.policy.TemporalPolicyDefaults;
 import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.policy.TemporalPolicyResolver.ReloadStats;
 import com.time_engine.common.policy.TemporalPolicyResolver.ResolvedPolicy;
 import com.time_engine.common.snapshot.SnapshotManager;
+import com.time_engine.common.temporal.TemporalLayerRelation;
+import com.time_engine.common.temporal.TemporalScaleResolver;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TemporalConfigService;
@@ -48,6 +51,16 @@ public final class TemporalDebugCommands {
         root.then(
                 Commands.literal("intercepts")
                         .executes(context -> showIntercepts(context.getSource())));
+        root.then(
+                Commands.literal("relation")
+                        .then(
+                                Commands.argument("target", EntityArgument.entity())
+                                        .executes(
+                                                context ->
+                                                        showRelation(
+                                                                context.getSource(),
+                                                                EntityArgument.getEntity(
+                                                                        context, "target")))));
         root.then(createPoliciesCommand());
         dispatcher.register(root);
     }
@@ -181,6 +194,28 @@ public final class TemporalDebugCommands {
         return 1;
     }
 
+    private static int showRelation(CommandSourceStack source, Entity target)
+            throws CommandSyntaxException {
+        ServerPlayer observer = source.getPlayerOrException();
+        TemporalScaleResolver scaleResolver = TemporalScaleResolver.server();
+        double observerScale = scaleResolver.effectiveScale(observer);
+        double targetScale = scaleResolver.effectiveScale(target);
+        TemporalLayerRelation relation = TemporalLayerRelation.compare(observerScale, targetScale);
+        double perceivedTick = relativePerceivedTick(source, observer, target);
+        boolean attackableGhost = relation.allowsAttackableGhost() && isCombatAllowed(target);
+
+        sendSuccess(
+                source,
+                "Time Engine relation to %s: observerScale=%.3f, targetScale=%.3f, relation=%s, perceivedTick=%.3f, attackableGhost=%s",
+                target.getName().getString(),
+                observerScale,
+                targetScale,
+                relation.kind().name().toLowerCase(Locale.ROOT),
+                perceivedTick,
+                attackableGhost);
+        return 1;
+    }
+
     private static int showPolicyStats(CommandSourceStack source) {
         ReloadStats stats = TemporalPolicyResolver.getInstance().stats();
         sendSuccess(
@@ -263,6 +298,26 @@ public final class TemporalDebugCommands {
     private static String describe(ResolvedPolicy policy) {
         String source = policy.policyId().map(Object::toString).orElse("fallback");
         return policy.decision().name().toLowerCase(Locale.ROOT) + "[" + source + "]";
+    }
+
+    private static double relativePerceivedTick(
+            CommandSourceStack source, ServerPlayer observer, Entity target) {
+        int currentTick = source.getServer().getTickCount();
+        TemporalScaleResolver scaleResolver = TemporalScaleResolver.server();
+        return TemporalSessionManager.getInstance()
+                .getSession(observer)
+                .map(session -> scaleResolver.relativePerceivedTick(session, target, currentTick))
+                .orElse((double) currentTick);
+    }
+
+    private static boolean isCombatAllowed(Entity target) {
+        return TemporalPolicyResolver.getInstance()
+                        .resolveEntity(
+                                target,
+                                Operation.PHANTOM_COMBAT,
+                                TemporalPolicyDefaults.phantomCombat())
+                        .decision()
+                == Decision.ALLOW;
     }
 
     private static void sendSuccess(CommandSourceStack source, String format, Object... arguments) {

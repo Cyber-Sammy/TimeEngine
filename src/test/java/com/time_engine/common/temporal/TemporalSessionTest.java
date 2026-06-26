@@ -23,6 +23,6 @@ class TemporalSessionTest {
 
     private static TemporalSession session(int durationTicks, float timeScale) {
         return new TemporalSession(
-                UUID.randomUUID(), UUID.randomUUID(), 0, durationTicks, timeScale, 32.0D);
+                UUID.randomUUID(), UUID.randomUUID(), 0, durationTicks, 20, timeScale, 32.0D);
     }
 }

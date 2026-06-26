@@ -5,12 +5,15 @@ import com.time_engine.common.network.TemporalConfigUpdateRequestPayload;
 import com.time_engine.config.TemporalConfigSnapshot;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class TemporalConfigScreen extends Screen {
@@ -19,6 +22,7 @@ public final class TemporalConfigScreen extends Screen {
     private static final int SUCCESS_COLOR = 0xFF55FF55;
     private static final int ERROR_COLOR = 0xFFFF5555;
     private static final int INFO_COLOR = 0xFFAAAAAA;
+    private static final double TIME_SCALE_STEP = 0.01D;
 
     private final List<FieldRow> fieldRows = new ArrayList<>();
     private TemporalConfigSnapshot current;
@@ -28,7 +32,7 @@ public final class TemporalConfigScreen extends Screen {
 
     private EditBox durationTicks;
     private EditBox cooldownTicks;
-    private EditBox timeScale;
+    private TimeScaleSlider timeScale;
     private EditBox radius;
     private EditBox snapshotHistoryTicks;
     private EditBox maxTrackedEntities;
@@ -76,7 +80,7 @@ public final class TemporalConfigScreen extends Screen {
 
         durationTicks = field("duration", current.durationTicks(), leftX, startY);
         cooldownTicks = field("cooldown", current.cooldownTicks(), leftX, startY + ROW_HEIGHT);
-        timeScale = field("time_scale", current.timeScale(), leftX, startY + ROW_HEIGHT * 2);
+        timeScale = timeScaleSlider(current.timeScale(), leftX, startY + ROW_HEIGHT * 2);
         radius = field("radius", current.radius(), leftX, startY + ROW_HEIGHT * 3);
         snapshotHistoryTicks =
                 field("history", current.snapshotHistoryTicks(), leftX, startY + ROW_HEIGHT * 4);
@@ -270,7 +274,7 @@ public final class TemporalConfigScreen extends Screen {
                 diagnosticLoggingValue,
                 Integer.parseInt(durationTicks.getValue()),
                 Integer.parseInt(cooldownTicks.getValue()),
-                Double.parseDouble(timeScale.getValue()),
+                timeScale.scale(),
                 Double.parseDouble(radius.getValue()),
                 Integer.parseInt(snapshotHistoryTicks.getValue()),
                 Integer.parseInt(maxTrackedEntities.getValue()),
@@ -291,7 +295,7 @@ public final class TemporalConfigScreen extends Screen {
     private void load(TemporalConfigSnapshot snapshot) {
         durationTicks.setValue(Integer.toString(snapshot.durationTicks()));
         cooldownTicks.setValue(Integer.toString(snapshot.cooldownTicks()));
-        timeScale.setValue(Double.toString(snapshot.timeScale()));
+        timeScale.setScale(snapshot.timeScale());
         radius.setValue(Double.toString(snapshot.radius()));
         snapshotHistoryTicks.setValue(Integer.toString(snapshot.snapshotHistoryTicks()));
         maxTrackedEntities.setValue(Integer.toString(snapshot.maxTrackedEntities()));
@@ -329,6 +333,11 @@ public final class TemporalConfigScreen extends Screen {
         button.setMessage(booleanLabel(enabled));
     }
 
+    private TimeScaleSlider timeScaleSlider(double value, int x, int y) {
+        fieldRows.add(new FieldRow("time_scale", x, y));
+        return addRenderableWidget(new TimeScaleSlider(x + 175, y, value));
+    }
+
     private static Component booleanLabel(boolean enabled) {
         return Component.translatable(
                 enabled
@@ -342,4 +351,69 @@ public final class TemporalConfigScreen extends Screen {
     }
 
     private record FieldRow(String key, int labelX, int y) {}
+
+    private static final class TimeScaleSlider extends AbstractSliderButton {
+        private double scale;
+
+        private TimeScaleSlider(int x, int y, double scale) {
+            super(x, y, FIELD_WIDTH, 20, Component.empty(), normalize(scale));
+            setScale(scale);
+        }
+
+        private double scale() {
+            return scale;
+        }
+
+        private void setScale(double requestedScale) {
+            scale =
+                    quantize(
+                            Mth.clamp(
+                                    requestedScale,
+                                    TemporalConfigSnapshot.MIN_TIME_SCALE,
+                                    TemporalConfigSnapshot.MAX_TIME_SCALE));
+            value = normalize(scale);
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Component.literal(String.format(Locale.ROOT, "%.2f", scale)));
+        }
+
+        @Override
+        protected void applyValue() {
+            scale = denormalize(value);
+            updateMessage();
+        }
+
+        private static double normalize(double scale) {
+            double clampedScale =
+                    Mth.clamp(
+                            scale,
+                            TemporalConfigSnapshot.MIN_TIME_SCALE,
+                            TemporalConfigSnapshot.MAX_TIME_SCALE);
+            return (clampedScale - TemporalConfigSnapshot.MIN_TIME_SCALE)
+                    / (TemporalConfigSnapshot.MAX_TIME_SCALE
+                            - TemporalConfigSnapshot.MIN_TIME_SCALE);
+        }
+
+        private static double denormalize(double normalizedValue) {
+            double rawScale =
+                    TemporalConfigSnapshot.MIN_TIME_SCALE
+                            + normalizedValue
+                                    * (TemporalConfigSnapshot.MAX_TIME_SCALE
+                                            - TemporalConfigSnapshot.MIN_TIME_SCALE);
+            return quantize(rawScale);
+        }
+
+        private static double quantize(double rawScale) {
+            double offset = rawScale - TemporalConfigSnapshot.MIN_TIME_SCALE;
+            double steps = Math.round(offset / TIME_SCALE_STEP);
+            double quantized = TemporalConfigSnapshot.MIN_TIME_SCALE + steps * TIME_SCALE_STEP;
+            return Mth.clamp(
+                    quantized,
+                    TemporalConfigSnapshot.MIN_TIME_SCALE,
+                    TemporalConfigSnapshot.MAX_TIME_SCALE);
+        }
+    }
 }
