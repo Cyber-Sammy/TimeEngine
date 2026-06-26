@@ -33,7 +33,11 @@
   "screen.time_engine.config.apply": "Apply",
   "screen.time_engine.config.reset": "Defaults",
   "screen.time_engine.config.cancel": "Close",
+  "screen.time_engine.config.use_recommended_history": "Use recommended",
   "screen.time_engine.config.saving": "Saving on server...",
   "screen.time_engine.config.defaults_loaded": "Defaults loaded; press Apply to save",
+  "screen.time_engine.config.recommended_history_applied": "Recommended snapshot history applied; press Apply to save",
+  "screen.time_engine.config.history_warning": "Snapshot history is short; recommended at least %s ticks for this duration/scale",
+  "screen.time_engine.config.history_ok": "Snapshot history OK; recommended minimum for this duration/scale is %s ticks",
   "screen.time_engine.config.notice": "Session values affect the next activation; changing history rebuilds snapshot buffers"
 }

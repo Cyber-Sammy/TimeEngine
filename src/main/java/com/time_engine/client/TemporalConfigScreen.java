@@ -2,6 +2,7 @@ package com.time_engine.client;
 
 import com.time_engine.common.network.TemporalConfigPayload;
 import com.time_engine.common.network.TemporalConfigUpdateRequestPayload;
+import com.time_engine.config.SnapshotHistoryGuidance;
 import com.time_engine.config.TemporalConfigSnapshot;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +22,7 @@ public final class TemporalConfigScreen extends Screen {
     private static final int ROW_HEIGHT = 22;
     private static final int SUCCESS_COLOR = 0xFF55FF55;
     private static final int ERROR_COLOR = 0xFFFF5555;
+    private static final int WARNING_COLOR = 0xFFFFAA00;
     private static final int INFO_COLOR = 0xFFAAAAAA;
     private static final double TIME_SCALE_STEP = 0.01D;
 
@@ -49,6 +51,7 @@ public final class TemporalConfigScreen extends Screen {
     private Button snapshotPlayersAlways;
     private Button temporalInterceptEnabled;
     private Button diagnosticLogging;
+    private Button useRecommendedHistory;
     private boolean snapshotPlayersAlwaysValue;
     private boolean temporalInterceptEnabledValue;
     private boolean diagnosticLoggingValue;
@@ -84,6 +87,14 @@ public final class TemporalConfigScreen extends Screen {
         radius = field("radius", current.radius(), leftX, startY + ROW_HEIGHT * 3);
         snapshotHistoryTicks =
                 field("history", current.snapshotHistoryTicks(), leftX, startY + ROW_HEIGHT * 4);
+        useRecommendedHistory =
+                addRenderableWidget(
+                        Button.builder(
+                                        Component.translatable(
+                                                "screen.time_engine.config.use_recommended_history"),
+                                        button -> useRecommendedHistory())
+                                .bounds(leftX + 270, startY + ROW_HEIGHT * 4, 105, 20)
+                                .build());
         maxTrackedEntities =
                 field("max_entities", current.maxTrackedEntities(), leftX, startY + ROW_HEIGHT * 5);
         snapshotPlayersAlwaysValue = current.snapshotPlayersAlways();
@@ -213,11 +224,16 @@ public final class TemporalConfigScreen extends Screen {
                                 0xFFFFFFFF,
                                 false));
         graphics.drawCenteredString(font, status, width / 2, footerY, statusColor);
+        HistoryGuidance guidance = historyGuidance();
+        if (guidance.available()) {
+            graphics.drawCenteredString(
+                    font, guidance.message(), width / 2, footerY + 18, guidance.color());
+        }
         graphics.drawCenteredString(
                 font,
                 Component.translatable("screen.time_engine.config.notice"),
                 width / 2,
-                footerY + 18,
+                footerY + 36,
                 INFO_COLOR);
     }
 
@@ -266,6 +282,18 @@ public final class TemporalConfigScreen extends Screen {
             PacketDistributor.sendToServer(new TemporalConfigUpdateRequestPayload(requested));
         } catch (NumberFormatException exception) {
             setStatus("Invalid number: " + exception.getMessage(), false);
+        }
+    }
+
+    private void useRecommendedHistory() {
+        try {
+            snapshotHistoryTicks.setValue(Integer.toString(recommendedHistoryTicks()));
+            setStatus(
+                    Component.translatable("screen.time_engine.config.recommended_history_applied")
+                            .getString(),
+                    true);
+        } catch (NumberFormatException exception) {
+            setStatus("Invalid session values: " + exception.getMessage(), false);
         }
     }
 
@@ -333,6 +361,24 @@ public final class TemporalConfigScreen extends Screen {
         button.setMessage(booleanLabel(enabled));
     }
 
+    private HistoryGuidance historyGuidance() {
+        try {
+            int historyTicks = Integer.parseInt(snapshotHistoryTicks.getValue());
+            int recommended = recommendedHistoryTicks();
+            if (historyTicks < recommended) {
+                return HistoryGuidance.warning(recommended);
+            }
+            return HistoryGuidance.ok(recommended);
+        } catch (NumberFormatException exception) {
+            return HistoryGuidance.unavailable();
+        }
+    }
+
+    private int recommendedHistoryTicks() {
+        return SnapshotHistoryGuidance.recommendedHistoryTicks(
+                Integer.parseInt(durationTicks.getValue()), timeScale.scale());
+    }
+
     private TimeScaleSlider timeScaleSlider(double value, int x, int y) {
         fieldRows.add(new FieldRow("time_scale", x, y));
         return addRenderableWidget(new TimeScaleSlider(x + 175, y, value));
@@ -351,6 +397,27 @@ public final class TemporalConfigScreen extends Screen {
     }
 
     private record FieldRow(String key, int labelX, int y) {}
+
+    private record HistoryGuidance(boolean available, Component message, int color) {
+        private static HistoryGuidance warning(int recommended) {
+            return new HistoryGuidance(
+                    true,
+                    Component.translatable(
+                            "screen.time_engine.config.history_warning", recommended),
+                    WARNING_COLOR);
+        }
+
+        private static HistoryGuidance ok(int recommended) {
+            return new HistoryGuidance(
+                    true,
+                    Component.translatable("screen.time_engine.config.history_ok", recommended),
+                    INFO_COLOR);
+        }
+
+        private static HistoryGuidance unavailable() {
+            return new HistoryGuidance(false, Component.empty(), INFO_COLOR);
+        }
+    }
 
     private static final class TimeScaleSlider extends AbstractSliderButton {
         private double scale;
