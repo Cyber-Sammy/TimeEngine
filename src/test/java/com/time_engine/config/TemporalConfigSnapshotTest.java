@@ -55,6 +55,22 @@ class TemporalConfigSnapshotTest {
     }
 
     @Test
+    void sessionSettingsOverlayOnlyChangesSessionValues() {
+        TemporalConfigSnapshot defaults = TemporalConfigSnapshot.defaults();
+        TemporalSessionSettings settings = new TemporalSessionSettings(600, 40, 0.5F, 48.0D);
+
+        TemporalConfigSnapshot actual = defaults.withSessionSettings(settings);
+
+        assertEquals(600, actual.durationTicks());
+        assertEquals(40, actual.cooldownTicks());
+        assertEquals(0.5D, actual.timeScale(), 0.0001D);
+        assertEquals(48.0D, actual.radius());
+        assertEquals(defaults.snapshotHistoryTicks(), actual.snapshotHistoryTicks());
+        assertEquals(defaults.phantomAttackReach(), actual.phantomAttackReach());
+        assertEquals(defaults.temporalInterceptEnabled(), actual.temporalInterceptEnabled());
+    }
+
+    @Test
     void rejectsInvalidAfterimageLifetime() {
         TemporalConfigSnapshot defaults = TemporalConfigSnapshot.defaults();
         TemporalConfigSnapshot invalid =

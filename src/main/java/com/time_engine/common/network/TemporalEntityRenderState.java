@@ -20,6 +20,7 @@ public record TemporalEntityRenderState(
         float xRot,
         Pose pose,
         AABB boundingBox,
+        double perceivedTick,
         boolean phantomCombatAllowed) {
     private static final int MAX_POSE_NAME_LENGTH = 64;
     private static final AtomicBoolean INVALID_POSE_LOGGED = new AtomicBoolean();
@@ -32,6 +33,9 @@ public record TemporalEntityRenderState(
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(pose, "pose");
         Objects.requireNonNull(boundingBox, "boundingBox");
+        if (!Double.isFinite(perceivedTick)) {
+            throw new IllegalArgumentException("perceivedTick must be finite");
+        }
     }
 
     public static TemporalEntityRenderState fromSnapshot(EntitySnapshot snapshot) {
@@ -40,6 +44,11 @@ public record TemporalEntityRenderState(
 
     public static TemporalEntityRenderState fromSnapshot(
             EntitySnapshot snapshot, boolean phantomCombatAllowed) {
+        return fromSnapshot(snapshot, snapshot.serverTick(), phantomCombatAllowed);
+    }
+
+    public static TemporalEntityRenderState fromSnapshot(
+            EntitySnapshot snapshot, double perceivedTick, boolean phantomCombatAllowed) {
         return new TemporalEntityRenderState(
                 snapshot.entityId(),
                 snapshot.position(),
@@ -47,6 +56,7 @@ public record TemporalEntityRenderState(
                 snapshot.xRot(),
                 snapshot.pose(),
                 snapshot.boundingBox(),
+                perceivedTick,
                 phantomCombatAllowed);
     }
 
@@ -58,6 +68,7 @@ public record TemporalEntityRenderState(
                 entity.getXRot(),
                 entity.getPose(),
                 entity.getBoundingBox(),
+                0.0D,
                 true);
     }
 
@@ -74,6 +85,7 @@ public record TemporalEntityRenderState(
                 lerpRotation(xRot, next.xRot, amount),
                 amount < 1.0D ? pose : next.pose,
                 interpolate(boundingBox, next.boundingBox, amount),
+                Mth.lerp(amount, perceivedTick, next.perceivedTick),
                 phantomCombatAllowed && next.phantomCombatAllowed);
     }
 
@@ -91,6 +103,7 @@ public record TemporalEntityRenderState(
         buffer.writeDouble(state.boundingBox.maxX);
         buffer.writeDouble(state.boundingBox.maxY);
         buffer.writeDouble(state.boundingBox.maxZ);
+        buffer.writeDouble(state.perceivedTick);
         buffer.writeBoolean(state.phantomCombatAllowed);
     }
 
@@ -108,9 +121,17 @@ public record TemporalEntityRenderState(
                         buffer.readDouble(),
                         buffer.readDouble(),
                         buffer.readDouble());
+        double perceivedTick = buffer.readDouble();
         boolean phantomCombatAllowed = buffer.readBoolean();
         return new TemporalEntityRenderState(
-                entityId, position, yRot, xRot, pose, boundingBox, phantomCombatAllowed);
+                entityId,
+                position,
+                yRot,
+                xRot,
+                pose,
+                boundingBox,
+                perceivedTick,
+                phantomCombatAllowed);
     }
 
     private static Pose decodePose(String poseName) {

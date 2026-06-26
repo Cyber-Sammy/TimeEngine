@@ -1,7 +1,7 @@
 package com.time_engine.common.temporal;
 
 import com.time_engine.common.network.ModNetworking;
-import com.time_engine.config.TimeEngineConfig;
+import com.time_engine.config.TemporalConfigService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -20,7 +20,8 @@ public final class TemporalActivationService {
 
         if (manager.startSession(player)) {
             ModNetworking.sendState(player);
-            double durationSeconds = TimeEngineConfig.durationTicks() / 20.0D;
+            double durationSeconds =
+                    TemporalConfigService.sessionSettings(player).durationTicks() / 20.0D;
             player.displayClientMessage(
                     Component.translatable("message.time_engine.temporal.started", durationSeconds),
                     true);

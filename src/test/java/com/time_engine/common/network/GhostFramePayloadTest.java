@@ -84,13 +84,30 @@ class GhostFramePayloadTest {
     }
 
     @Test
+    void codecRoundTripsPerEntityPerceivedTick() {
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            TemporalEntityRenderState.STREAM_CODEC.encode(
+                    buffer, state(0.0D, 0.0F, Pose.STANDING, true, 123.5D));
+
+            assertEquals(
+                    123.5D,
+                    TemporalEntityRenderState.STREAM_CODEC.decode(buffer).perceivedTick(),
+                    0.0001D);
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Test
     void interpolationKeepsPhantomCombatDisabledWhenEitherFrameDisablesIt() {
-        TemporalEntityRenderState previous = state(0.0D, 0.0F, Pose.STANDING, true);
-        TemporalEntityRenderState current = state(10.0D, 0.0F, Pose.STANDING, false);
+        TemporalEntityRenderState previous = state(0.0D, 0.0F, Pose.STANDING, true, 100.0D);
+        TemporalEntityRenderState current = state(10.0D, 0.0F, Pose.STANDING, false, 110.0D);
 
         TemporalEntityRenderState interpolated = previous.interpolate(current, 0.5D);
 
         assertEquals(false, interpolated.phantomCombatAllowed());
+        assertEquals(105.0D, interpolated.perceivedTick(), 0.0001D);
     }
 
     private static Pose roundTrip(Pose pose) {
@@ -118,6 +135,7 @@ class GhostFramePayloadTest {
         buffer.writeDouble(1.0D);
         buffer.writeDouble(4.0D);
         buffer.writeDouble(4.0D);
+        buffer.writeDouble(0.0D);
         buffer.writeBoolean(phantomCombatAllowed);
     }
 
@@ -127,6 +145,11 @@ class GhostFramePayloadTest {
 
     private static TemporalEntityRenderState state(
             double x, float yRot, Pose pose, boolean phantomCombatAllowed) {
+        return state(x, yRot, pose, phantomCombatAllowed, 0.0D);
+    }
+
+    private static TemporalEntityRenderState state(
+            double x, float yRot, Pose pose, boolean phantomCombatAllowed, double perceivedTick) {
         return new TemporalEntityRenderState(
                 ENTITY_ID,
                 new Vec3(x, 2.0D, 3.0D),
@@ -134,6 +157,7 @@ class GhostFramePayloadTest {
                 0.0F,
                 pose,
                 new AABB(x, 2.0D, 3.0D, x + 1.0D, 4.0D, 4.0D),
+                perceivedTick,
                 phantomCombatAllowed);
     }
 }

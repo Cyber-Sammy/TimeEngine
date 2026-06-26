@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -66,11 +66,10 @@ public final class TemporalInterceptManager {
             return;
         }
 
-        double perceivedTick = sessionManager.getPerceivedTick(session, serverTick);
         TemporalInterceptSessionState state =
                 statesBySession.computeIfAbsent(
                         session.sessionId(),
-                        ignored -> new TemporalInterceptSessionState(perceivedTick));
+                        ignored -> new TemporalInterceptSessionState(serverTick));
         state.add(placedBlock, TimeEngineConfig.maxTemporalBlocksPerSession());
         ModLog.diagnostic(
                 "Recorded temporal block {} for session {} at server tick {}",
@@ -137,17 +136,15 @@ public final class TemporalInterceptManager {
         }
 
         int serverTick = server.getTickCount();
-        double currentPerceivedTick =
-                TemporalSessionManager.getInstance().getPerceivedTick(session, serverTick);
         TemporalInterceptSessionState state =
                 statesBySession.computeIfAbsent(
                         session.sessionId(),
-                        ignored -> new TemporalInterceptSessionState(currentPerceivedTick));
+                        ignored -> new TemporalInterceptSessionState(serverTick));
         state.trim(TimeEngineConfig.maxTemporalBlocksPerSession());
         state.removeInvalid(owner.serverLevel());
 
-        OptionalDouble previousPerceivedTick = state.advance(currentPerceivedTick);
-        if (previousPerceivedTick.isEmpty()) {
+        OptionalInt previousServerTick = state.advance(serverTick);
+        if (previousServerTick.isEmpty()) {
             return;
         }
         if (state.isEmpty()) {
@@ -155,7 +152,7 @@ public final class TemporalInterceptManager {
         }
 
         TemporalInterceptResolver.evaluate(
-                owner, session, state, previousPerceivedTick.getAsDouble(), currentPerceivedTick);
+                owner, session, state, previousServerTick.getAsInt(), serverTick);
     }
 
     private static boolean isWithinSessionRadius(

@@ -80,7 +80,7 @@ public final class ModNetworking {
         PacketDistributor.sendToPlayer(
                 player,
                 new TemporalConfigPayload(
-                        TemporalConfigSnapshot.current(),
+                        TemporalConfigService.currentFor(player),
                         TemporalConfigSnapshot.defaults(),
                         success,
                         message));

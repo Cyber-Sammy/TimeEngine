@@ -1,5 +1,7 @@
 package com.time_engine.common.temporal;
 
+import com.time_engine.config.TemporalConfigService;
+import com.time_engine.config.TemporalSessionSettings;
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.util.ModLog;
 import java.util.ArrayList;
@@ -7,6 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +22,7 @@ public final class TemporalSessionManager {
 
     private final Map<UUID, TemporalSession> sessionsByOwner = new HashMap<>();
     private final Map<UUID, Integer> cooldownEndTicks = new HashMap<>();
+    private final Map<UUID, List<TemporalScaleSegment>> scaleSegmentsByOwner = new HashMap<>();
     private final Collection<TemporalSession> activeSessions =
             Collections.unmodifiableCollection(sessionsByOwner.values());
 
@@ -39,16 +43,11 @@ public final class TemporalSessionManager {
             return false;
         }
 
-        TemporalSession session =
-                new TemporalSession(
-                        UUID.randomUUID(),
-                        playerId,
-                        currentTick,
-                        TimeEngineConfig.durationTicks(),
-                        TimeEngineConfig.timeScale(),
-                        TimeEngineConfig.radius());
+        TemporalSessionSettings settings = TemporalConfigService.sessionSettings(player);
+        TemporalSession session = createSession(playerId, currentTick, settings);
         warnIfSnapshotHistoryIsTooShort(session);
         sessionsByOwner.put(playerId, session);
+        recordScaleSegment(session);
         ModLog.diagnostic(
                 "Started temporal session {} for player {} at tick {} (duration={}, scale={}, radius={})",
                 session.sessionId(),
@@ -65,7 +64,11 @@ public final class TemporalSessionManager {
     }
 
     public Optional<TemporalSession> getSession(ServerPlayer player) {
-        return Optional.ofNullable(sessionsByOwner.get(player.getUUID()))
+        return getSession(player.getUUID());
+    }
+
+    public Optional<TemporalSession> getSession(UUID ownerPlayerId) {
+        return Optional.ofNullable(sessionsByOwner.get(ownerPlayerId))
                 .filter(TemporalSession::active);
     }
 
@@ -75,6 +78,15 @@ public final class TemporalSessionManager {
 
     public Collection<TemporalSession> getActiveSessions() {
         return activeSessions;
+    }
+
+    public List<TemporalScaleSegment> getScaleSegments(
+            UUID ownerPlayerId, int fromTick, int toTick) {
+        List<TemporalScaleSegment> segments = scaleSegmentsByOwner.get(ownerPlayerId);
+        if (segments == null) {
+            return List.of();
+        }
+        return segments.stream().filter(segment -> segment.overlaps(fromTick, toTick)).toList();
     }
 
     public int getCooldownTicksRemaining(ServerPlayer player) {
@@ -113,6 +125,7 @@ public final class TemporalSessionManager {
         }
 
         cooldownEndTicks.entrySet().removeIf(entry -> entry.getValue() <= currentTick);
+        pruneScaleSegments(currentTick);
         return expiredSessionOwners;
     }
 
@@ -128,6 +141,7 @@ public final class TemporalSessionManager {
                 cooldownEndTicks.size());
         sessionsByOwner.clear();
         cooldownEndTicks.clear();
+        scaleSegmentsByOwner.clear();
     }
 
     private boolean stopSession(UUID ownerId, int currentTick, boolean applyCooldown) {
@@ -140,8 +154,9 @@ public final class TemporalSessionManager {
         }
 
         session.deactivate();
+        closeScaleSegment(ownerId, currentTick);
         if (applyCooldown) {
-            cooldownEndTicks.put(ownerId, currentTick + TimeEngineConfig.cooldownTicks());
+            cooldownEndTicks.put(ownerId, currentTick + session.cooldownTicks());
         }
         ModLog.diagnostic(
                 "Stopped temporal session {} at tick {}", session.sessionId(), currentTick);
@@ -159,7 +174,8 @@ public final class TemporalSessionManager {
             ServerPlayer owner,
             int currentTick) {
         session.deactivate();
-        cooldownEndTicks.put(entry.getKey(), currentTick + TimeEngineConfig.cooldownTicks());
+        closeScaleSegment(entry.getKey(), currentTick);
+        cooldownEndTicks.put(entry.getKey(), currentTick + session.cooldownTicks());
         if (owner != null) {
             owner.displayClientMessage(
                     Component.translatable("message.time_engine.temporal.expired"), true);
@@ -179,5 +195,47 @@ public final class TemporalSessionManager {
                     configuredHistory,
                     minimumHistory);
         }
+    }
+
+    private static TemporalSession createSession(
+            UUID playerId, int currentTick, TemporalSessionSettings settings) {
+        return new TemporalSession(
+                UUID.randomUUID(),
+                playerId,
+                currentTick,
+                settings.durationTicks(),
+                settings.cooldownTicks(),
+                settings.timeScale(),
+                settings.radius());
+    }
+
+    private void recordScaleSegment(TemporalSession session) {
+        scaleSegmentsByOwner
+                .computeIfAbsent(session.ownerPlayerId(), ignored -> new ArrayList<>())
+                .add(
+                        new TemporalScaleSegment(
+                                session.startTick(), session.endTick(), session.timeScale()));
+    }
+
+    private void closeScaleSegment(UUID ownerId, int currentTick) {
+        List<TemporalScaleSegment> segments = scaleSegmentsByOwner.get(ownerId);
+        if (segments == null || segments.isEmpty()) {
+            return;
+        }
+        segments.getLast().closeAt(currentTick);
+    }
+
+    private void pruneScaleSegments(int currentTick) {
+        int oldestRetainedTick =
+                currentTick
+                        - TimeEngineConfig.snapshotHistoryTicks()
+                        - TemporalConstants.SNAPSHOT_HISTORY_SAFETY_MARGIN_TICKS;
+        scaleSegmentsByOwner
+                .values()
+                .forEach(
+                        segments ->
+                                segments.removeIf(
+                                        segment -> segment.endTick() < oldestRetainedTick));
+        scaleSegmentsByOwner.values().removeIf(List::isEmpty);
     }
 }

@@ -1,10 +1,6 @@
 package com.time_engine.common.network;
 
 import com.time_engine.TimeEngine;
-import com.time_engine.common.policy.TemporalPolicy.Decision;
-import com.time_engine.common.policy.TemporalPolicy.Operation;
-import com.time_engine.common.policy.TemporalPolicyDefaults;
-import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.snapshot.EntitySnapshot;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +10,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
 
 public record GhostFramePayload(
         UUID sessionId,
@@ -44,37 +39,13 @@ public record GhostFramePayload(
             int serverTick,
             double perceivedTick,
             ResourceLocation dimension,
-            List<EntitySnapshot> snapshots,
-            EntityResolver entityResolver) {
+            List<GhostFrameEntity> ghostEntities) {
         return new GhostFramePayload(
                 sessionId,
                 serverTick,
                 perceivedTick,
                 dimension,
-                snapshots.stream()
-                        .map(snapshot -> createRenderState(snapshot, entityResolver))
-                        .toList());
-    }
-
-    private static TemporalEntityRenderState createRenderState(
-            EntitySnapshot snapshot, EntityResolver entityResolver) {
-        return TemporalEntityRenderState.fromSnapshot(
-                snapshot, isPhantomCombatAllowed(snapshot, entityResolver));
-    }
-
-    private static boolean isPhantomCombatAllowed(
-            EntitySnapshot snapshot, EntityResolver entityResolver) {
-        Entity entity = entityResolver.resolve(snapshot.entityId());
-        if (entity == null) {
-            return false;
-        }
-        return TemporalPolicyResolver.getInstance()
-                        .resolveEntity(
-                                entity,
-                                Operation.PHANTOM_COMBAT,
-                                TemporalPolicyDefaults.phantomCombat())
-                        .decision()
-                == Decision.ALLOW;
+                ghostEntities.stream().map(GhostFrameEntity::toRenderState).toList());
     }
 
     private static void encode(FriendlyByteBuf buffer, GhostFramePayload payload) {
@@ -116,8 +87,18 @@ public record GhostFramePayload(
         return TYPE;
     }
 
-    @FunctionalInterface
-    public interface EntityResolver {
-        Entity resolve(UUID entityId);
+    public record GhostFrameEntity(
+            EntitySnapshot snapshot, double perceivedTick, boolean phantomCombatAllowed) {
+        public GhostFrameEntity {
+            Objects.requireNonNull(snapshot, "snapshot");
+            if (!Double.isFinite(perceivedTick)) {
+                throw new IllegalArgumentException("perceivedTick must be finite");
+            }
+        }
+
+        private TemporalEntityRenderState toRenderState() {
+            return TemporalEntityRenderState.fromSnapshot(
+                    snapshot, perceivedTick, phantomCombatAllowed);
+        }
     }
 }

@@ -36,9 +36,9 @@ public final class ClientGhostTargeting {
             return false;
         }
 
+        TemporalEntityRenderState target = nearest.orElseThrow();
         PacketDistributor.sendToServer(
-                new PhantomHitRequestPayload(
-                        nearest.orElseThrow().entityId(), frame.perceivedTick()));
+                new PhantomHitRequestPayload(target.entityId(), target.perceivedTick()));
         return true;
     }
 

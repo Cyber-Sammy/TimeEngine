@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 class TemporalInterceptSessionStateTest {
     @Test
     void keepsOnlyNewestConfiguredBlocks() {
-        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10.0D);
+        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10);
         state.add(record(0), 2);
         state.add(record(1), 2);
         state.add(record(2), 2);
@@ -26,7 +26,7 @@ class TemporalInterceptSessionStateTest {
 
     @Test
     void replacesRecordAtSamePosition() {
-        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10.0D);
+        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10);
         state.add(record(0), 4);
         state.blocks().getFirst().markIntercepted(UUID.randomUUID());
         state.add(record(0), 4);
@@ -36,18 +36,18 @@ class TemporalInterceptSessionStateTest {
     }
 
     @Test
-    void advancesOnlyForIncreasingPerceivedTime() {
-        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10.0D);
+    void advancesOnlyForIncreasingServerTime() {
+        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10);
 
-        assertFalse(state.advance(10.0D).isPresent());
-        assertEquals(10.0D, state.advance(10.5D).orElseThrow(), 0.0001D);
-        assertFalse(state.advance(10.25D).isPresent());
-        assertEquals(10.25D, state.advance(11.0D).orElseThrow(), 0.0001D);
+        assertFalse(state.advance(10).isPresent());
+        assertEquals(10, state.advance(11).orElseThrow());
+        assertFalse(state.advance(10).isPresent());
+        assertEquals(11, state.advance(12).orElseThrow());
     }
 
     @Test
     void tracksInterceptedTargetOncePerBlock() {
-        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10.0D);
+        TemporalInterceptSessionState state = new TemporalInterceptSessionState(10);
         state.add(record(0), 4);
         UUID targetId = UUID.randomUUID();
 
