@@ -31,8 +31,7 @@ public final class SnapshotManager {
     private static final double BOUNDARY_EXIT_CAPTURE_GRACE_BLOCKS = 2.0D;
 
     private final Map<UUID, EntitySnapshotBuffer> buffersByEntity = new HashMap<>();
-    private final Map<UUID, Set<UUID>> trackedEntityIdsBySession = new HashMap<>();
-    private final Map<UUID, Map<UUID, Integer>> admissionTicksBySession = new HashMap<>();
+    private final Map<UUID, SessionEntityAdmission> admissionBySession = new HashMap<>();
     private final Map<UUID, TrackingDiagnostics> trackingDiagnosticsBySession = new HashMap<>();
     private int bufferCapacity;
 
@@ -79,12 +78,7 @@ public final class SnapshotManager {
         buffersByEntity
                 .values()
                 .removeIf(buffer -> buffer.latestRecordedTick() < oldestRetainedTick);
-        trackedEntityIdsBySession
-                .keySet()
-                .removeIf(sessionId -> !isActive(sessionId, activeSessions));
-        admissionTicksBySession
-                .keySet()
-                .removeIf(sessionId -> !isActive(sessionId, activeSessions));
+        admissionBySession.keySet().removeIf(sessionId -> !isActive(sessionId, activeSessions));
         trackingDiagnosticsBySession
                 .keySet()
                 .removeIf(sessionId -> !isActive(sessionId, activeSessions));
@@ -139,20 +133,21 @@ public final class SnapshotManager {
     }
 
     public Set<UUID> admittedEntityIds(UUID sessionId) {
-        return Set.copyOf(trackedEntityIdsBySession.getOrDefault(sessionId, Set.of()));
+        SessionEntityAdmission admission = admissionBySession.get(sessionId);
+        return admission == null ? Set.of() : admission.admittedIds();
     }
 
     public boolean isAdmitted(UUID sessionId, UUID entityId) {
-        return trackedEntityIdsBySession.getOrDefault(sessionId, Set.of()).contains(entityId);
+        SessionEntityAdmission admission = admissionBySession.get(sessionId);
+        return admission != null && admission.contains(entityId);
     }
 
     public OptionalInt getAdmissionTick(UUID sessionId, UUID entityId) {
-        Map<UUID, Integer> admissionTicks = admissionTicksBySession.get(sessionId);
-        if (admissionTicks == null) {
+        SessionEntityAdmission admission = admissionBySession.get(sessionId);
+        if (admission == null) {
             return OptionalInt.empty();
         }
-        Integer admissionTick = admissionTicks.get(entityId);
-        return admissionTick == null ? OptionalInt.empty() : OptionalInt.of(admissionTick);
+        return admission.admissionTick(entityId);
     }
 
     public Optional<BufferStats> getBufferStats(UUID entityId) {
@@ -171,8 +166,7 @@ public final class SnapshotManager {
     public void clear() {
         ModLog.diagnostic("Clearing {} entity snapshot buffers", buffersByEntity.size());
         buffersByEntity.clear();
-        trackedEntityIdsBySession.clear();
-        admissionTicksBySession.clear();
+        admissionBySession.clear();
         trackingDiagnosticsBySession.clear();
         bufferCapacity = 0;
     }
@@ -195,7 +189,20 @@ public final class SnapshotManager {
                                         isCandidate(entity, owner, includePlayers, radiusSquared));
         candidates.sort(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner)));
 
-        Set<UUID> admittedIds = admittedIds(session, candidates, currentTick);
+        SessionEntityAdmission admission =
+                admissionBySession.computeIfAbsent(
+                        session.sessionId(), ignored -> new SessionEntityAdmission());
+        Set<UUID> retainableIds =
+                retainableIds(owner, includePlayers, radius, candidates, admission.admittedIds());
+        List<UUID> candidateIds = candidates.stream().map(Entity::getUUID).toList();
+        SessionEntityAdmission.AdmissionUpdate update =
+                admission.update(
+                        candidateIds,
+                        retainableIds,
+                        TimeEngineConfig.trackNewEntitiesEnteringSessionRadius(),
+                        TimeEngineConfig.maxTrackedEntitiesPerSession(),
+                        currentTick);
+        Set<UUID> admittedIds = admission.admittedIds();
         for (Entity candidate : candidates) {
             if (!admittedIds.contains(candidate.getUUID())) {
                 continue;
@@ -204,64 +211,48 @@ public final class SnapshotManager {
         }
         captureBoundaryExitEntities(
                 owner, includePlayers, currentTick, capturedEntityIds, admittedIds, radius);
-        recordDiagnostics(session, candidates.size(), admittedIds);
-    }
-
-    private Set<UUID> admittedIds(
-            TemporalSession session, List<Entity> candidates, int currentTick) {
-        Set<UUID> admittedIds =
-                trackedEntityIdsBySession.computeIfAbsent(
-                        session.sessionId(), ignored -> new HashSet<>());
-        Map<UUID, Integer> admissionTicks =
-                admissionTicksBySession.computeIfAbsent(
-                        session.sessionId(), ignored -> new HashMap<>());
-        if (TimeEngineConfig.trackNewEntitiesEnteringSessionRadius()) {
-            admitNewCandidates(admittedIds, admissionTicks, candidates, currentTick);
-            return admittedIds;
-        }
-
-        if (admittedIds.isEmpty()) {
-            admitNewCandidates(admittedIds, admissionTicks, candidates, currentTick);
-        }
-        return admittedIds;
-    }
-
-    private void admitNewCandidates(
-            Set<UUID> admittedIds,
-            Map<UUID, Integer> admissionTicks,
-            List<Entity> candidates,
-            int currentTick) {
-        int maxTrackedEntities = TimeEngineConfig.maxTrackedEntitiesPerSession();
-        for (int index = 0; index < candidates.size(); index++) {
-            if (admittedIds.size() >= maxTrackedEntities) {
-                return;
-            }
-            UUID entityId = candidates.get(index).getUUID();
-            if (admittedIds.add(entityId)) {
-                admissionTicks.put(entityId, currentTick);
-            }
-        }
+        recordDiagnostics(session, admittedIds, update);
     }
 
     private void recordDiagnostics(
-            TemporalSession session, int candidateCount, Set<UUID> admittedIds) {
-        TrackingDiagnostics previous = trackingDiagnosticsBySession.get(session.sessionId());
-        int previousAdmitted = previous == null ? 0 : previous.admittedEntities();
-        int newlyAdmitted = Math.max(0, admittedIds.size() - previousAdmitted);
-        boolean capReached =
-                candidateCount > admittedIds.size()
-                        && admittedIds.size() >= TimeEngineConfig.maxTrackedEntitiesPerSession();
+            TemporalSession session,
+            Set<UUID> admittedIds,
+            SessionEntityAdmission.AdmissionUpdate update) {
         trackingDiagnosticsBySession.put(
                 session.sessionId(),
-                new TrackingDiagnostics(admittedIds.size(), newlyAdmitted, capReached));
-        if (newlyAdmitted > 0 || capReached) {
+                new TrackingDiagnostics(
+                        admittedIds.size(), update.newlyAdmitted(), update.capReached()));
+        if (update.newlyAdmitted() > 0 || update.evicted() > 0 || update.capReached()) {
             ModLog.diagnostic(
-                    "Dynamic tracking for session {}: admitted={}, newlyAdmitted={}, capReached={}",
+                    "Dynamic tracking for session {}: admitted={}, newlyAdmitted={}, evicted={}, capReached={}",
                     session.sessionId(),
                     admittedIds.size(),
-                    newlyAdmitted,
-                    capReached);
+                    update.newlyAdmitted(),
+                    update.evicted(),
+                    update.capReached());
         }
+    }
+
+    private Set<UUID> retainableIds(
+            ServerPlayer owner,
+            boolean includePlayers,
+            double radius,
+            List<Entity> candidates,
+            Set<UUID> admittedIds) {
+        Set<UUID> retainableIds = new HashSet<>();
+        candidates.stream().map(Entity::getUUID).forEach(retainableIds::add);
+
+        double radiusSquared = radius * radius;
+        double outerRadius = radius + BOUNDARY_EXIT_CAPTURE_GRACE_BLOCKS;
+        double outerRadiusSquared = outerRadius * outerRadius;
+        for (UUID entityId : admittedIds) {
+            Entity entity = owner.serverLevel().getEntity(entityId);
+            if (isBoundaryExitCandidate(
+                    entity, owner, includePlayers, radiusSquared, outerRadiusSquared)) {
+                retainableIds.add(entityId);
+            }
+        }
+        return retainableIds;
     }
 
     private void captureBoundaryExitEntities(
@@ -331,8 +322,7 @@ public final class SnapshotManager {
                     configuredCapacity);
             buffersByEntity.clear();
         }
-        trackedEntityIdsBySession.clear();
-        admissionTicksBySession.clear();
+        admissionBySession.clear();
         trackingDiagnosticsBySession.clear();
         bufferCapacity = configuredCapacity;
     }
