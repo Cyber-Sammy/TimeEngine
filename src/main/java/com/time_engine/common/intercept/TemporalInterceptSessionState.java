@@ -4,17 +4,17 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
-import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.server.level.ServerLevel;
 
 final class TemporalInterceptSessionState {
     private final Deque<TrackedBlock> blocks = new ArrayDeque<>();
-    private double lastPerceivedTick;
+    private int lastServerTick;
 
-    TemporalInterceptSessionState(double initialPerceivedTick) {
-        lastPerceivedTick = initialPerceivedTick;
+    TemporalInterceptSessionState(int initialServerTick) {
+        lastServerTick = initialServerTick;
     }
 
     void add(PlacedBlockRecord record, int maxBlocks) {
@@ -33,13 +33,13 @@ final class TemporalInterceptSessionState {
         blocks.removeIf(block -> !block.record().stillExists(level));
     }
 
-    OptionalDouble advance(double currentPerceivedTick) {
-        double previousPerceivedTick = lastPerceivedTick;
-        lastPerceivedTick = currentPerceivedTick;
-        if (currentPerceivedTick <= previousPerceivedTick) {
-            return OptionalDouble.empty();
+    OptionalInt advance(int currentServerTick) {
+        int previousServerTick = lastServerTick;
+        if (currentServerTick <= previousServerTick) {
+            return OptionalInt.empty();
         }
-        return OptionalDouble.of(previousPerceivedTick);
+        lastServerTick = currentServerTick;
+        return OptionalInt.of(previousServerTick);
     }
 
     boolean isEmpty() {

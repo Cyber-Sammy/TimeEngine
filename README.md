@@ -71,6 +71,8 @@ Rules:
 - A faster observer may receive an attackable historical ghost against a slower target.
 - A slower observer does not receive an attackable ghost against a faster target.
 - Afterimages are visual readability feedback and are separate from attackable ghost AABBs.
+- Temporal Intercept uses the same relation rule: temporal obstacles only affect targets that are
+  slower than the session owner on that server tick.
 
 Examples:
 

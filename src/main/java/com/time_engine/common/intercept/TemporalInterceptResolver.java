@@ -7,9 +7,11 @@ import com.time_engine.common.policy.TemporalPolicyDefaults;
 import com.time_engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.common.snapshot.EntitySnapshot;
 import com.time_engine.common.snapshot.SnapshotManager;
+import com.time_engine.common.temporal.TemporalScaleResolver;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.util.ModLog;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -29,21 +31,22 @@ final class TemporalInterceptResolver {
             ServerPlayer owner,
             TemporalSession session,
             TemporalInterceptSessionState state,
-            double previousPerceivedTick,
-            double currentPerceivedTick) {
+            int previousServerTick,
+            int currentServerTick) {
         SnapshotManager snapshotManager = SnapshotManager.getInstance();
-        List<EntitySnapshot> currentSnapshots =
-                snapshotManager.getInterpolatedSnapshots(
-                        owner.level().dimension(),
-                        owner.position(),
-                        session.radius(),
-                        currentPerceivedTick,
-                        owner.getUUID(),
-                        TimeEngineConfig.maxTrackedEntitiesPerSession());
+        TemporalScaleResolver scaleResolver = TemporalScaleResolver.server();
+        List<Entity> candidates = collectCandidates(owner, session.radius());
 
-        for (EntitySnapshot currentSnapshot : currentSnapshots) {
+        for (Entity target : candidates) {
             evaluateSnapshot(
-                    owner, session, state, snapshotManager, currentSnapshot, previousPerceivedTick);
+                    owner,
+                    session,
+                    state,
+                    snapshotManager,
+                    scaleResolver,
+                    target,
+                    previousServerTick,
+                    currentServerTick);
         }
     }
 
@@ -52,19 +55,35 @@ final class TemporalInterceptResolver {
             TemporalSession session,
             TemporalInterceptSessionState state,
             SnapshotManager snapshotManager,
-            EntitySnapshot currentSnapshot,
-            double previousPerceivedTick) {
-        Entity target = owner.serverLevel().getEntity(currentSnapshot.entityId());
-        if (!isSupportedTarget(owner, target)) {
+            TemporalScaleResolver scaleResolver,
+            Entity target,
+            int previousServerTick,
+            int currentServerTick) {
+        if (!isSupportedTarget(owner, target, scaleResolver)) {
             return;
         }
+
+        double previousTargetTick =
+                scaleResolver.relativePerceivedTick(session, target, previousServerTick);
+        double currentTargetTick =
+                scaleResolver.relativePerceivedTick(session, target, currentServerTick);
+        if (currentTargetTick <= previousTargetTick) {
+            return;
+        }
+
+        Optional<EntitySnapshot> currentSnapshot =
+                snapshotManager.getInterpolatedSnapshot(target.getUUID(), currentTargetTick);
+        if (currentSnapshot.isEmpty()) {
+            return;
+        }
+
         Optional<EntitySnapshot> previousSnapshot =
-                snapshotManager.getInterpolatedSnapshot(
-                        currentSnapshot.entityId(), previousPerceivedTick);
+                snapshotManager.getInterpolatedSnapshot(target.getUUID(), previousTargetTick);
         if (previousSnapshot.isEmpty()) {
             return;
         }
-        if (!hasContinuousDimension(previousSnapshot.orElseThrow(), currentSnapshot)) {
+        if (!hasContinuousDimension(
+                previousSnapshot.orElseThrow(), currentSnapshot.orElseThrow())) {
             return;
         }
         evaluateTargetPath(
@@ -74,8 +93,8 @@ final class TemporalInterceptResolver {
                 snapshotManager,
                 target,
                 previousSnapshot.orElseThrow(),
-                currentSnapshot,
-                previousPerceivedTick);
+                currentSnapshot.orElseThrow(),
+                previousTargetTick);
     }
 
     private static void evaluateTargetPath(
@@ -207,7 +226,21 @@ final class TemporalInterceptResolver {
         return previousSnapshot.dimension().equals(currentSnapshot.dimension());
     }
 
-    private static boolean isSupportedTarget(ServerPlayer owner, Entity target) {
+    private static List<Entity> collectCandidates(ServerPlayer owner, double radius) {
+        AABB searchBounds = owner.getBoundingBox().inflate(radius);
+        double radiusSquared = radius * radius;
+        return owner
+                .serverLevel()
+                .getEntities(
+                        owner, searchBounds, entity -> entity.distanceToSqr(owner) <= radiusSquared)
+                .stream()
+                .sorted(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner)))
+                .limit(TimeEngineConfig.maxTrackedEntitiesPerSession())
+                .toList();
+    }
+
+    private static boolean isSupportedTarget(
+            ServerPlayer owner, Entity target, TemporalScaleResolver scaleResolver) {
         if (target == null) {
             return false;
         }
@@ -223,11 +256,21 @@ final class TemporalInterceptResolver {
         if (target.isVehicle()) {
             return false;
         }
+        if (!hasTemporalAdvantage(owner, target, scaleResolver)) {
+            return false;
+        }
         Decision fallback = TemporalPolicyDefaults.interceptEntity(target);
         return TemporalPolicyResolver.getInstance()
                         .resolveEntity(target, Operation.TEMPORAL_INTERCEPT, fallback)
                         .decision()
                 == Decision.ALLOW;
+    }
+
+    private static boolean hasTemporalAdvantage(
+            ServerPlayer owner, Entity target, TemporalScaleResolver scaleResolver) {
+        double ownerScale = scaleResolver.effectiveScale(owner);
+        double targetScale = scaleResolver.effectiveScale(target);
+        return TemporalInterceptRules.allowsIntercept(ownerScale, targetScale);
     }
 
     private static boolean isBlockAllowed(PlacedBlockRecord block) {
