@@ -42,6 +42,9 @@ required history ~= durationTicks * (1.0 - timeScale) + safety margin
 ```
 
 For example, `durationTicks = 600` and `timeScale = 0.2` needs roughly `500` ticks of history.
+The `/timeengine config` screen shows this recommended minimum for the current per-player session
+settings and includes a button to fill the recommended history value. It warns but does not block
+Apply; this keeps the panel useful for development experiments.
 
 ## Debug commands
 
