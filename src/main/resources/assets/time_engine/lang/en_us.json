@@ -16,6 +16,7 @@
   "screen.time_engine.config.history": "Snapshot history (ticks)",
   "screen.time_engine.config.max_entities": "Maximum tracked entities",
   "screen.time_engine.config.snapshot_players": "Always snapshot players",
+  "screen.time_engine.config.track_new_entities": "Track new radius entries",
   "screen.time_engine.config.frame_interval": "Ghost frame interval",
   "screen.time_engine.config.afterimage_interval": "Afterimage interval (ticks)",
   "screen.time_engine.config.afterimage_lifetime": "Afterimage lifetime (ticks)",

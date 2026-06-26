@@ -125,15 +125,22 @@ public final class TemporalDebugCommands {
 
         TemporalSession activeSession = session.get();
         double perceivedTick = manager.getPerceivedTick(activeSession, currentTick);
+        SnapshotManager.TrackingDiagnostics trackingDiagnostics =
+                SnapshotManager.getInstance()
+                        .getTrackingDiagnostics(activeSession.sessionId())
+                        .orElse(new SnapshotManager.TrackingDiagnostics(0, 0, false));
         sendSuccess(
                 source,
-                "Time Engine: active, currentTick=%d, perceivedTick=%.3f, startTick=%d, endTick=%d, scale=%.3f, activeSessions=%d",
+                "Time Engine: active, currentTick=%d, perceivedTick=%.3f, startTick=%d, endTick=%d, scale=%.3f, activeSessions=%d, admitted=%d, newlyAdmitted=%d, trackingCapReached=%s",
                 currentTick,
                 perceivedTick,
                 activeSession.startTick(),
                 activeSession.endTick(),
                 activeSession.timeScale(),
-                manager.getActiveSessions().size());
+                manager.getActiveSessions().size(),
+                trackingDiagnostics.admittedEntities(),
+                trackingDiagnostics.newlyAdmittedEntities(),
+                trackingDiagnostics.capReached());
         return 1;
     }
 

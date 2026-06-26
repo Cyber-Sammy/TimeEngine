@@ -26,6 +26,7 @@ class TemporalConfigSnapshotTest {
                         defaults.snapshotHistoryTicks(),
                         defaults.maxTrackedEntities(),
                         defaults.snapshotPlayersAlways(),
+                        defaults.trackNewEntitiesEnteringSessionRadius(),
                         defaults.ghostFrameIntervalTicks(),
                         defaults.afterimageIntervalTicks(),
                         defaults.afterimageLifetimeTicks(),
@@ -66,6 +67,9 @@ class TemporalConfigSnapshotTest {
         assertEquals(0.5D, actual.timeScale(), 0.0001D);
         assertEquals(48.0D, actual.radius());
         assertEquals(defaults.snapshotHistoryTicks(), actual.snapshotHistoryTicks());
+        assertEquals(
+                defaults.trackNewEntitiesEnteringSessionRadius(),
+                actual.trackNewEntitiesEnteringSessionRadius());
         assertEquals(defaults.phantomAttackReach(), actual.phantomAttackReach());
         assertEquals(defaults.temporalInterceptEnabled(), actual.temporalInterceptEnabled());
     }
@@ -83,6 +87,7 @@ class TemporalConfigSnapshotTest {
                         defaults.snapshotHistoryTicks(),
                         defaults.maxTrackedEntities(),
                         defaults.snapshotPlayersAlways(),
+                        defaults.trackNewEntitiesEnteringSessionRadius(),
                         defaults.ghostFrameIntervalTicks(),
                         defaults.afterimageIntervalTicks(),
                         0,
@@ -113,6 +118,7 @@ class TemporalConfigSnapshotTest {
                         defaults.snapshotHistoryTicks(),
                         defaults.maxTrackedEntities(),
                         defaults.snapshotPlayersAlways(),
+                        defaults.trackNewEntitiesEnteringSessionRadius(),
                         defaults.ghostFrameIntervalTicks(),
                         defaults.afterimageIntervalTicks(),
                         defaults.afterimageLifetimeTicks(),

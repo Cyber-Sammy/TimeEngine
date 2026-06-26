@@ -46,6 +46,12 @@ The `/timeengine config` screen shows this recommended minimum for the current p
 settings and includes a button to fill the recommended history value. It warns but does not block
 Apply; this keeps the panel useful for development experiments.
 
+By default, eligible entities that enter an active user's session radius begin receiving snapshot
+history for that session. This can be disabled with the server setting
+`trackNewEntitiesEnteringSessionRadius` or through `/timeengine config` when debugging or reducing
+tracking churn. If a historical ghost exits the session radius, Time Engine clamps the debug ghost
+to the session boundary briefly and then stops rendering it beyond that boundary.
+
 ## Debug commands
 
 The commands require permission level 2:

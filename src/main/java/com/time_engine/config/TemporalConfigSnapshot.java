@@ -14,6 +14,7 @@ public record TemporalConfigSnapshot(
         int snapshotHistoryTicks,
         int maxTrackedEntities,
         boolean snapshotPlayersAlways,
+        boolean trackNewEntitiesEnteringSessionRadius,
         int ghostFrameIntervalTicks,
         int afterimageIntervalTicks,
         int afterimageLifetimeTicks,
@@ -68,6 +69,7 @@ public record TemporalConfigSnapshot(
                 TimeEngineConfig.snapshotHistoryTicks(),
                 TimeEngineConfig.maxTrackedEntitiesPerSession(),
                 TimeEngineConfig.snapshotPlayersAlways(),
+                TimeEngineConfig.trackNewEntitiesEnteringSessionRadius(),
                 TimeEngineConfig.ghostFrameIntervalTicks(),
                 TimeEngineConfig.afterimageIntervalTicks(),
                 TimeEngineConfig.afterimageLifetimeTicks(),
@@ -90,6 +92,7 @@ public record TemporalConfigSnapshot(
                 TemporalConstants.DEFAULT_RADIUS,
                 20 * 10,
                 128,
+                true,
                 true,
                 2,
                 2,
@@ -114,6 +117,7 @@ public record TemporalConfigSnapshot(
                 snapshotHistoryTicks,
                 maxTrackedEntities,
                 snapshotPlayersAlways,
+                trackNewEntitiesEnteringSessionRadius,
                 ghostFrameIntervalTicks,
                 afterimageIntervalTicks,
                 afterimageLifetimeTicks,
@@ -219,6 +223,7 @@ public record TemporalConfigSnapshot(
         buffer.writeVarInt(snapshotHistoryTicks);
         buffer.writeVarInt(maxTrackedEntities);
         buffer.writeBoolean(snapshotPlayersAlways);
+        buffer.writeBoolean(trackNewEntitiesEnteringSessionRadius);
         buffer.writeVarInt(ghostFrameIntervalTicks);
         buffer.writeVarInt(afterimageIntervalTicks);
         buffer.writeVarInt(afterimageLifetimeTicks);
@@ -241,6 +246,7 @@ public record TemporalConfigSnapshot(
                 buffer.readDouble(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
+                buffer.readBoolean(),
                 buffer.readBoolean(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),

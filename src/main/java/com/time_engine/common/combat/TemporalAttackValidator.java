@@ -1,5 +1,6 @@
 package com.time_engine.common.combat;
 
+import com.time_engine.common.network.GhostFrameBoundary;
 import com.time_engine.common.policy.TemporalPolicy.Decision;
 import com.time_engine.common.policy.TemporalPolicy.Operation;
 import com.time_engine.common.policy.TemporalPolicyDefaults;
@@ -15,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.UUID;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -68,14 +70,18 @@ public final class TemporalAttackValidator {
             return ValidationResult.rejected(RejectionReason.TEMPORAL_RELATION_REJECTED);
         }
 
+        SnapshotManager snapshotManager = SnapshotManager.getInstance();
         double serverPerceivedTick =
-                scaleResolver.relativePerceivedTick(session, target, serverTick);
+                effectivePerceivedTick(
+                        snapshotManager,
+                        session,
+                        target,
+                        scaleResolver.relativePerceivedTick(session, target, serverTick));
         if (!isValidClientTick(session, clientPerceivedTick, serverPerceivedTick)) {
             return ValidationResult.rejected(RejectionReason.INVALID_CLIENT_TICK);
         }
         Optional<EntitySnapshot> snapshotResult =
-                SnapshotManager.getInstance()
-                        .getInterpolatedSnapshot(targetEntityId, clientPerceivedTick);
+                snapshotManager.getInterpolatedSnapshot(targetEntityId, clientPerceivedTick);
         if (snapshotResult.isEmpty()) {
             return ValidationResult.rejected(RejectionReason.SNAPSHOT_NOT_FOUND);
         }
@@ -87,6 +93,12 @@ public final class TemporalAttackValidator {
         if (!snapshot.alive()) {
             return ValidationResult.rejected(RejectionReason.INVALID_SNAPSHOT);
         }
+        if (!GhostFrameBoundary.canRenderAtBoundary(
+                snapshot, attacker.position(), session.radius())) {
+            return ValidationResult.rejected(RejectionReason.RAY_MISSED_HISTORICAL_BOUNDS);
+        }
+        EntitySnapshot boundedSnapshot =
+                GhostFrameBoundary.clampToRadius(snapshot, attacker.position(), session.radius());
 
         Vec3 attackOrigin = attacker.getEyePosition();
         OptionalDouble hitDistance =
@@ -94,7 +106,7 @@ public final class TemporalAttackValidator {
                         attackOrigin,
                         attacker.getLookAngle(),
                         TimeEngineConfig.phantomAttackReach(),
-                        snapshot.boundingBox());
+                        boundedSnapshot.boundingBox());
         if (hitDistance.isEmpty()) {
             return ValidationResult.rejected(RejectionReason.RAY_MISSED_HISTORICAL_BOUNDS);
         }
@@ -163,6 +175,19 @@ public final class TemporalAttackValidator {
             ServerPlayer attacker, Entity target, TemporalScaleResolver scaleResolver) {
         return TemporalLayerRelation.compare(
                 scaleResolver.effectiveScale(attacker), scaleResolver.effectiveScale(target));
+    }
+
+    private static double effectivePerceivedTick(
+            SnapshotManager snapshotManager,
+            TemporalSession session,
+            Entity target,
+            double rawPerceivedTick) {
+        OptionalInt admissionTick =
+                snapshotManager.getAdmissionTick(session.sessionId(), target.getUUID());
+        if (admissionTick.isEmpty()) {
+            return rawPerceivedTick;
+        }
+        return Math.max(rawPerceivedTick, admissionTick.getAsInt());
     }
 
     public enum RejectionReason {
