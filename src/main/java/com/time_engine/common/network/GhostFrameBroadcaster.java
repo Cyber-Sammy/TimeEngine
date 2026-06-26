@@ -14,8 +14,12 @@ import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TimeEngineConfig;
 import com.time_engine.util.ModLog;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -74,13 +78,27 @@ public final class GhostFrameBroadcaster {
             TemporalScaleResolver scaleResolver) {
         AABB searchBounds = owner.getBoundingBox().inflate(session.radius());
         double radiusSquared = session.radius() * session.radius();
-        return owner
+        Map<UUID, Entity> candidatesById = new LinkedHashMap<>();
+        owner
                 .serverLevel()
                 .getEntities(
                         owner,
                         searchBounds,
                         entity -> isCurrentCandidate(entity, owner, radiusSquared))
                 .stream()
+                .filter(entity -> isAdmittedOrAlwaysTrackedPlayer(session, snapshotManager, entity))
+                .forEach(entity -> candidatesById.put(entity.getUUID(), entity));
+        snapshotManager
+                .admittedEntityIds(session.sessionId())
+                .forEach(
+                        entityId -> {
+                            Entity entity = owner.serverLevel().getEntity(entityId);
+                            if (entity != null && !entity.getUUID().equals(owner.getUUID())) {
+                                candidatesById.putIfAbsent(entityId, entity);
+                            }
+                        });
+
+        return candidatesById.values().stream()
                 .sorted(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner)))
                 .map(
                         entity ->
@@ -108,14 +126,23 @@ public final class GhostFrameBroadcaster {
             return Optional.empty();
         }
 
-        double perceivedTick = scaleResolver.relativePerceivedTick(session, target, serverTick);
+        double perceivedTick =
+                effectivePerceivedTick(
+                        snapshotManager,
+                        session,
+                        target,
+                        scaleResolver.relativePerceivedTick(session, target, serverTick));
         return snapshotManager
                 .getInterpolatedSnapshot(target.getUUID(), perceivedTick)
                 .filter(snapshot -> isUsableSnapshot(snapshot, owner))
+                .filter(snapshot -> canRenderWithinBoundary(snapshot, owner, session))
                 .map(
                         snapshot ->
                                 new GhostFrameEntity(
-                                        snapshot, perceivedTick, isPhantomCombatAllowed(target)));
+                                        GhostFrameBoundary.clampToRadius(
+                                                snapshot, owner.position(), session.radius()),
+                                        perceivedTick,
+                                        isPhantomCombatAllowed(target)));
     }
 
     private static TemporalLayerRelation relation(
@@ -135,11 +162,37 @@ public final class GhostFrameBroadcaster {
         return entity.distanceToSqr(owner) <= radiusSquared;
     }
 
+    private static boolean isAdmittedOrAlwaysTrackedPlayer(
+            TemporalSession session, SnapshotManager snapshotManager, Entity entity) {
+        if (entity instanceof ServerPlayer && TimeEngineConfig.snapshotPlayersAlways()) {
+            return true;
+        }
+        return snapshotManager.isAdmitted(session.sessionId(), entity.getUUID());
+    }
+
+    private static double effectivePerceivedTick(
+            SnapshotManager snapshotManager,
+            TemporalSession session,
+            Entity target,
+            double rawPerceivedTick) {
+        OptionalInt admissionTick =
+                snapshotManager.getAdmissionTick(session.sessionId(), target.getUUID());
+        if (admissionTick.isEmpty()) {
+            return rawPerceivedTick;
+        }
+        return Math.max(rawPerceivedTick, admissionTick.getAsInt());
+    }
+
     private static boolean isUsableSnapshot(EntitySnapshot snapshot, ServerPlayer owner) {
         if (!snapshot.alive()) {
             return false;
         }
         return snapshot.dimension().equals(owner.level().dimension());
+    }
+
+    private static boolean canRenderWithinBoundary(
+            EntitySnapshot snapshot, ServerPlayer owner, TemporalSession session) {
+        return GhostFrameBoundary.canRenderAtBoundary(snapshot, owner.position(), session.radius());
     }
 
     private static boolean isPhantomCombatAllowed(Entity target) {

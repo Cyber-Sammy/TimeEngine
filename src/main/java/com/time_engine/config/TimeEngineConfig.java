@@ -15,6 +15,7 @@ public final class TimeEngineConfig {
     public static final ModConfigSpec.IntValue SNAPSHOT_HISTORY_TICKS;
     public static final ModConfigSpec.IntValue MAX_TRACKED_ENTITIES_PER_SESSION;
     public static final ModConfigSpec.BooleanValue SNAPSHOT_PLAYERS_ALWAYS;
+    public static final ModConfigSpec.BooleanValue TRACK_NEW_ENTITIES_ENTERING_SESSION_RADIUS;
     public static final ModConfigSpec.IntValue GHOST_FRAME_INTERVAL_TICKS;
     public static final ModConfigSpec.IntValue AFTERIMAGE_INTERVAL_TICKS;
     public static final ModConfigSpec.IntValue AFTERIMAGE_LIFETIME_TICKS;
@@ -102,6 +103,14 @@ public final class TimeEngineConfig {
                         .define(
                                 "snapshotPlayersAlways",
                                 TemporalConfigSnapshot.defaults().snapshotPlayersAlways());
+        TRACK_NEW_ENTITIES_ENTERING_SESSION_RADIUS =
+                serverBuilder
+                        .comment(
+                                "When enabled, eligible entities that enter an active session radius begin receiving snapshot history. Disable to keep each session limited to entities admitted when the session first scans.")
+                        .define(
+                                "trackNewEntitiesEnteringSessionRadius",
+                                TemporalConfigSnapshot.defaults()
+                                        .trackNewEntitiesEnteringSessionRadius());
         serverBuilder.pop();
 
         serverBuilder.push("networking");
@@ -237,6 +246,10 @@ public final class TimeEngineConfig {
 
     public static boolean snapshotPlayersAlways() {
         return SNAPSHOT_PLAYERS_ALWAYS.get();
+    }
+
+    public static boolean trackNewEntitiesEnteringSessionRadius() {
+        return TRACK_NEW_ENTITIES_ENTERING_SESSION_RADIUS.get();
     }
 
     public static int ghostFrameIntervalTicks() {

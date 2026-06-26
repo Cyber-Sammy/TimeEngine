@@ -49,10 +49,12 @@ public final class TemporalConfigScreen extends Screen {
     private EditBox phantomAttackCooldownTicks;
     private EditBox phantomAllowedHitTickDrift;
     private Button snapshotPlayersAlways;
+    private Button trackNewEntitiesEnteringSessionRadius;
     private Button temporalInterceptEnabled;
     private Button diagnosticLogging;
     private Button useRecommendedHistory;
     private boolean snapshotPlayersAlwaysValue;
+    private boolean trackNewEntitiesEnteringSessionRadiusValue;
     private boolean temporalInterceptEnabledValue;
     private boolean diagnosticLoggingValue;
     private int footerY;
@@ -107,6 +109,19 @@ public final class TemporalConfigScreen extends Screen {
                         button -> {
                             snapshotPlayersAlwaysValue = !snapshotPlayersAlwaysValue;
                             updateBooleanButton(button, snapshotPlayersAlwaysValue);
+                        });
+        trackNewEntitiesEnteringSessionRadiusValue =
+                current.trackNewEntitiesEnteringSessionRadius();
+        trackNewEntitiesEnteringSessionRadius =
+                booleanButton(
+                        "track_new_entities",
+                        trackNewEntitiesEnteringSessionRadiusValue,
+                        rightX,
+                        startY + ROW_HEIGHT * 9,
+                        button -> {
+                            trackNewEntitiesEnteringSessionRadiusValue =
+                                    !trackNewEntitiesEnteringSessionRadiusValue;
+                            updateBooleanButton(button, trackNewEntitiesEnteringSessionRadiusValue);
                         });
         ghostFrameIntervalTicks =
                 field(
@@ -307,6 +322,7 @@ public final class TemporalConfigScreen extends Screen {
                 Integer.parseInt(snapshotHistoryTicks.getValue()),
                 Integer.parseInt(maxTrackedEntities.getValue()),
                 snapshotPlayersAlwaysValue,
+                trackNewEntitiesEnteringSessionRadiusValue,
                 Integer.parseInt(ghostFrameIntervalTicks.getValue()),
                 Integer.parseInt(afterimageIntervalTicks.getValue()),
                 Integer.parseInt(afterimageLifetimeTicks.getValue()),
@@ -341,9 +357,13 @@ public final class TemporalConfigScreen extends Screen {
                 Integer.toString(snapshot.phantomAttackCooldownTicks()));
         phantomAllowedHitTickDrift.setValue(Double.toString(snapshot.phantomAllowedHitTickDrift()));
         snapshotPlayersAlwaysValue = snapshot.snapshotPlayersAlways();
+        trackNewEntitiesEnteringSessionRadiusValue =
+                snapshot.trackNewEntitiesEnteringSessionRadius();
         temporalInterceptEnabledValue = snapshot.temporalInterceptEnabled();
         diagnosticLoggingValue = snapshot.diagnosticLogging();
         updateBooleanButton(snapshotPlayersAlways, snapshotPlayersAlwaysValue);
+        updateBooleanButton(
+                trackNewEntitiesEnteringSessionRadius, trackNewEntitiesEnteringSessionRadiusValue);
         updateBooleanButton(temporalInterceptEnabled, temporalInterceptEnabledValue);
         updateBooleanButton(diagnosticLogging, diagnosticLoggingValue);
         status = Component.translatable("screen.time_engine.config.defaults_loaded").getString();
