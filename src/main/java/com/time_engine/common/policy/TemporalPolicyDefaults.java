@@ -10,20 +10,34 @@ public final class TemporalPolicyDefaults {
     private TemporalPolicyDefaults() {}
 
     public static Decision snapshot(Entity entity) {
-        if (entity instanceof Mob) {
+        return snapshot(
+                entity instanceof ServerPlayer,
+                entity instanceof Mob,
+                entity instanceof Projectile);
+    }
+
+    static Decision snapshot(boolean serverPlayer, boolean mob, boolean projectile) {
+        if (serverPlayer) {
             return Decision.ALLOW;
         }
-        if (entity instanceof Projectile) {
-            return Decision.ALLOW;
-        }
-        if (entity instanceof ServerPlayer) {
+        if (mob) {
             return Decision.ALLOW;
         }
         return Decision.IGNORE;
     }
 
-    public static Decision phantomCombat() {
-        return Decision.ALLOW;
+    public static Decision phantomCombat(Entity entity) {
+        return phantomCombat(entity instanceof ServerPlayer, entity instanceof Mob);
+    }
+
+    static Decision phantomCombat(boolean serverPlayer, boolean mob) {
+        if (serverPlayer) {
+            return Decision.ALLOW;
+        }
+        if (mob) {
+            return Decision.ALLOW;
+        }
+        return Decision.IGNORE;
     }
 
     public static Decision interceptEntity(Entity entity) {

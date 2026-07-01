@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.DoubleFunction;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 final class SafeSnapshotResolver {
     private static final int MAX_HISTORY_SEARCH_TICKS = 20;
@@ -28,6 +29,7 @@ final class SafeSnapshotResolver {
             return segmentSnapshot;
         }
         return searchHistory(
+                currentSnapshot,
                 previousSnapshot,
                 previousPerceivedTick,
                 minimumPerceivedTick,
@@ -58,12 +60,13 @@ final class SafeSnapshotResolver {
     }
 
     private static Optional<EntitySnapshot> searchHistory(
+            EntitySnapshot currentSnapshot,
             EntitySnapshot previousSnapshot,
             double previousPerceivedTick,
             double minimumPerceivedTick,
             List<AABB> obstacles,
             DoubleFunction<Optional<EntitySnapshot>> historyLookup) {
-        if (isSafe(previousSnapshot, obstacles)) {
+        if (isSafeBeforeObstacle(previousSnapshot, currentSnapshot, previousSnapshot, obstacles)) {
             return Optional.of(previousSnapshot);
         }
 
@@ -76,11 +79,23 @@ final class SafeSnapshotResolver {
             if (snapshot.isEmpty()) {
                 continue;
             }
-            if (isSafe(snapshot.orElseThrow(), obstacles)) {
+            if (isSafeBeforeObstacle(
+                    snapshot.orElseThrow(), previousSnapshot, currentSnapshot, obstacles)) {
                 return snapshot;
             }
         }
         return Optional.empty();
+    }
+
+    private static boolean isSafeBeforeObstacle(
+            EntitySnapshot candidate,
+            EntitySnapshot previousSnapshot,
+            EntitySnapshot currentSnapshot,
+            List<AABB> obstacles) {
+        if (!isSafe(candidate, obstacles)) {
+            return false;
+        }
+        return isBeforeCollisionSide(candidate, previousSnapshot, currentSnapshot, obstacles);
     }
 
     private static boolean isSafe(EntitySnapshot snapshot, List<AABB> obstacles) {
@@ -88,5 +103,35 @@ final class SafeSnapshotResolver {
             return false;
         }
         return !PathCollisionChecker.overlaps(snapshot.boundingBox(), obstacles);
+    }
+
+    private static boolean isBeforeCollisionSide(
+            EntitySnapshot candidate,
+            EntitySnapshot previousSnapshot,
+            EntitySnapshot currentSnapshot,
+            List<AABB> obstacles) {
+        Vec3 movement = currentSnapshot.position().subtract(previousSnapshot.position());
+        if (movement.lengthSqr() < MIN_PATH_LENGTH) {
+            return true;
+        }
+
+        Vec3 candidateOffset = candidate.position().subtract(previousSnapshot.position());
+        double candidateProgress = candidateOffset.dot(movement) / movement.lengthSqr();
+        if (candidateProgress <= 0.0D) {
+            return true;
+        }
+
+        Optional<Double> earliestCollision =
+                PathCollisionChecker.findFirstCollision(
+                                previousSnapshot.boundingBox(),
+                                currentSnapshot.boundingBox(),
+                                obstacles)
+                        .stream()
+                        .boxed()
+                        .findFirst();
+        if (earliestCollision.isEmpty()) {
+            return true;
+        }
+        return candidateProgress <= earliestCollision.orElseThrow();
     }
 }

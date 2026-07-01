@@ -78,6 +78,25 @@ class SafeSnapshotResolverTest {
         assertTrue(resolved.isEmpty());
     }
 
+    @Test
+    void rejectsSafeHistoryThatIsPastObstacleAlongMovementDirection() {
+        EntitySnapshot previous = snapshot(10, 2.0D);
+        EntitySnapshot current = snapshot(11, 3.0D);
+        EntitySnapshot safeButPastObstacle = snapshot(9, 4.0D);
+
+        Optional<EntitySnapshot> resolved =
+                SafeSnapshotResolver.resolve(
+                        previous,
+                        current,
+                        0.0D,
+                        10.0D,
+                        0.0D,
+                        List.of(BLOCK),
+                        tick -> tick == 9.0D ? Optional.of(safeButPastObstacle) : Optional.empty());
+
+        assertTrue(resolved.isEmpty());
+    }
+
     private static EntitySnapshot snapshot(int serverTick, double x) {
         return new EntitySnapshot(
                 UUID.fromString("f430bed8-9440-46af-bbf2-c5633a73f49d"),
