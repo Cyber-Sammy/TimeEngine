@@ -4,6 +4,8 @@ import com.time_engine.common.policy.TemporalPolicy.Decision;
 import com.time_engine.common.policy.TemporalPolicy.Operation;
 import com.time_engine.common.policy.TemporalPolicyDefaults;
 import com.time_engine.common.policy.TemporalPolicyResolver;
+import com.time_engine.common.snapshot.EntitySnapshot;
+import com.time_engine.common.snapshot.SnapshotManager;
 import com.time_engine.common.temporal.TemporalSession;
 import com.time_engine.common.temporal.TemporalSessionManager;
 import com.time_engine.config.TimeEngineConfig;
@@ -107,6 +109,16 @@ public final class TemporalInterceptManager {
         return Optional.of(new InterceptStats(state.blockCount(), state.interceptedTargetCount()));
     }
 
+    public Optional<EntitySnapshot> getSplicedSnapshot(
+            UUID sessionId, UUID targetId, double perceivedTick) {
+        TemporalInterceptSessionState state = statesBySession.get(sessionId);
+        if (state == null) {
+            return Optional.empty();
+        }
+        return state.splice(targetId, perceivedTick)
+                .map(splice -> resolveSplicedSnapshot(targetId, perceivedTick, splice));
+    }
+
     public boolean isInteractionLocked(ServerLevel level, BlockPos position) {
         for (TemporalInterceptSessionState state : statesBySession.values()) {
             for (TemporalInterceptSessionState.TrackedBlock block : state.blocks()) {
@@ -159,6 +171,16 @@ public final class TemporalInterceptManager {
             ServerPlayer player, BlockPos position, double radius) {
         double radiusSquared = radius * radius;
         return player.position().distanceToSqr(Vec3.atCenterOf(position)) <= radiusSquared;
+    }
+
+    private static EntitySnapshot resolveSplicedSnapshot(
+            UUID targetId,
+            double perceivedTick,
+            TemporalInterceptSessionState.TimelineSplice splice) {
+        double mappedTick = splice.mappedServerTick(perceivedTick);
+        return SnapshotManager.getInstance()
+                .getInterpolatedSnapshot(targetId, mappedTick)
+                .orElse(splice.fallbackSnapshot());
     }
 
     private static boolean shouldRecordBlock(PlacedBlockRecord record) {

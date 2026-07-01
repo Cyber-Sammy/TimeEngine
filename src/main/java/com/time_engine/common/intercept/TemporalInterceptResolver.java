@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.UUID;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -72,13 +73,13 @@ final class TemporalInterceptResolver {
         }
 
         Optional<EntitySnapshot> currentSnapshot =
-                snapshotManager.getInterpolatedSnapshot(target.getUUID(), currentTargetTick);
+                snapshotForIntercept(state, target.getUUID(), currentTargetTick, snapshotManager);
         if (currentSnapshot.isEmpty()) {
             return;
         }
 
         Optional<EntitySnapshot> previousSnapshot =
-                snapshotManager.getInterpolatedSnapshot(target.getUUID(), previousTargetTick);
+                snapshotForIntercept(state, target.getUUID(), previousTargetTick, snapshotManager);
         if (previousSnapshot.isEmpty()) {
             return;
         }
@@ -94,7 +95,9 @@ final class TemporalInterceptResolver {
                 target,
                 previousSnapshot.orElseThrow(),
                 currentSnapshot.orElseThrow(),
-                previousTargetTick);
+                previousTargetTick,
+                currentTargetTick,
+                currentServerTick);
     }
 
     private static void evaluateTargetPath(
@@ -105,7 +108,9 @@ final class TemporalInterceptResolver {
             Entity target,
             EntitySnapshot previousSnapshot,
             EntitySnapshot currentSnapshot,
-            double previousPerceivedTick) {
+            double previousPerceivedTick,
+            double currentPerceivedTick,
+            int currentServerTick) {
         Optional<InterceptCandidate> candidate =
                 findFirstIntercept(state, target, previousSnapshot, currentSnapshot);
         if (candidate.isEmpty()) {
@@ -121,7 +126,9 @@ final class TemporalInterceptResolver {
                         previousPerceivedTick,
                         session.startTick(),
                         intercept.block().record().collisionBoxes(),
-                        tick -> snapshotManager.getInterpolatedSnapshot(target.getUUID(), tick));
+                        tick ->
+                                snapshotForIntercept(
+                                        state, target.getUUID(), tick, snapshotManager));
         if (safeSnapshot.isEmpty()) {
             ModLog.diagnostic(
                     "Rejected temporal intercept for entity {} at block {}: no safe historical snapshot",
@@ -129,11 +136,17 @@ final class TemporalInterceptResolver {
                     intercept.block().record().position());
             return;
         }
-        if (!applyCorrection(owner.serverLevel(), target, safeSnapshot.orElseThrow())) {
+        EntitySnapshot collapseSnapshot = safeSnapshot.orElseThrow();
+        if (!applyCorrection(owner.serverLevel(), target, collapseSnapshot)) {
             return;
         }
 
         intercept.block().markIntercepted(target.getUUID());
+        state.recordSplice(
+                target.getUUID(),
+                collapseTick(previousPerceivedTick, currentPerceivedTick, intercept.pathProgress()),
+                currentServerTick,
+                collapseSnapshot);
         showFeedback(owner.serverLevel(), target.position());
         ModLog.diagnostic(
                 "Temporal intercept corrected entity {} using block {} from session {}",
@@ -163,6 +176,23 @@ final class TemporalInterceptResolver {
             }
         }
         return Optional.ofNullable(earliest);
+    }
+
+    private static Optional<EntitySnapshot> snapshotForIntercept(
+            TemporalInterceptSessionState state,
+            UUID targetId,
+            double perceivedTick,
+            SnapshotManager snapshotManager) {
+        Optional<TemporalInterceptSessionState.TimelineSplice> splice =
+                state.splice(targetId, perceivedTick);
+        if (splice.isEmpty()) {
+            return snapshotManager.getInterpolatedSnapshot(targetId, perceivedTick);
+        }
+
+        TemporalInterceptSessionState.TimelineSplice timelineSplice = splice.orElseThrow();
+        return snapshotManager
+                .getInterpolatedSnapshot(targetId, timelineSplice.mappedServerTick(perceivedTick))
+                .or(() -> Optional.of(timelineSplice.fallbackSnapshot()));
     }
 
     private static OptionalDouble findCollision(
@@ -281,6 +311,12 @@ final class TemporalInterceptResolver {
                                 TemporalPolicyDefaults.interceptBlock())
                         .decision()
                 == Decision.ALLOW;
+    }
+
+    private static double collapseTick(
+            double previousPerceivedTick, double currentPerceivedTick, double pathProgress) {
+        return previousPerceivedTick
+                + (currentPerceivedTick - previousPerceivedTick) * pathProgress;
     }
 
     private static void showFeedback(ServerLevel level, Vec3 position) {

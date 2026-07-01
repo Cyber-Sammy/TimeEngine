@@ -16,6 +16,7 @@ public final class TemporalCombatService {
 
     private final Map<UUID, Integer> lastRequestTicks = new HashMap<>();
     private final Map<UUID, Integer> lastRejectionLogTicks = new HashMap<>();
+    private PhantomDamageResolver damageResolver = VanillaPhantomDamageResolver.INSTANCE;
 
     private TemporalCombatService() {}
 
@@ -42,7 +43,14 @@ public final class TemporalCombatService {
         }
 
         ValidatedAttack attack = result.attack();
-        if (!TemporalDamageHandler.apply(attacker, attack.target())) {
+        PhantomDamageResult damageResult =
+                damageResolver.apply(PhantomDamageContext.from(attacker, attack));
+        if (!damageResult.applied()) {
+            ModLog.diagnostic(
+                    "Rejected phantom damage from {} to {}: {}",
+                    attackerId,
+                    attack.target().getUUID(),
+                    damageResult.reason());
             logRejection(attacker, RejectionReason.DAMAGE_REJECTED, serverTick);
             return;
         }
@@ -56,6 +64,14 @@ public final class TemporalCombatService {
                 attack.serverPerceivedTick(),
                 attack.validatedPerceivedTick(),
                 attack.hitDistance());
+    }
+
+    void setDamageResolverForTests(PhantomDamageResolver damageResolver) {
+        this.damageResolver = damageResolver;
+    }
+
+    void resetDamageResolverForTests() {
+        damageResolver = VanillaPhantomDamageResolver.INSTANCE;
     }
 
     public void clearPlayer(UUID playerId) {

@@ -99,6 +99,51 @@ overlap, then normal slowdown again after the target exits. Client hit requests 
 server recalculates relation, perceived tick, ray/AABB intersection, reach, cooldown and policy
 checks before applying damage.
 
+## Phantom melee damage
+
+Phantom combat is server-authoritative. The client can request a phantom hit, but the server
+revalidates the active temporal session, temporal relation, policy, historical snapshot, bounded
+ghost AABB raycast, reach, allowed tick drift and attack cooldown before any damage is applied.
+
+The current damage implementation is a vanilla-compatible direct melee MVP:
+
+- Time Engine first produces a validated phantom hit.
+- A damage resolver then applies damage to the real target entity.
+- The default resolver uses the attacker's vanilla base attack damage multiplied by
+  `phantomDamageMultiplier`.
+- Damage is applied through Minecraft's normal `playerAttack` damage source, so ordinary entity
+  damage handling such as armor/resistance remains on the vanilla path.
+- The attacker's attack strength ticker is reset and the main hand swing is broadcast after a
+  successful phantom hit.
+
+This is not yet a full copy of Minecraft's complete melee pipeline. Weapon-specific modifiers,
+critical hits, knockback, Fire Aspect, sweeping behavior and enchantment edge cases are intentionally
+kept explicit future work instead of being applied accidentally.
+
+Indirect phantom damage is also not implemented yet. TNT, explosions, projectiles, splash/lingering
+potions, area clouds and status effects do not currently transfer through ghost AABBs. Those require
+a separate server-authoritative attribution and effect-transfer system.
+
+## Temporal Intercept
+
+Temporal Intercept is the server-authoritative obstacle correction layer for temporal sessions. When
+a temporal user places a valid obstacle during an active session, slower targets can be corrected if
+their historical ghost path crosses that obstacle.
+
+After a successful correction, Time Engine does not mutate the raw snapshot history. Instead, it
+stores a session-local timeline splice for the affected target:
+
+- before the intercept tick, ghosts use the original historical trajectory;
+- at and after the intercept tick, ghosts are remapped to the target's post-correction server
+  snapshots;
+- the safe correction snapshot is used only as a temporary fallback until post-correction snapshots
+  are available;
+- later obstacles can still intercept the same target again and replace the active splice.
+
+The same splice-aware lookup is used for debug ghost rendering, phantom hit validation and
+subsequent Temporal Intercept checks. Safe correction lookup also rejects fallback snapshots that are
+technically non-overlapping but already lie past the obstacle along the current movement direction.
+
 ## Temporal policies
 
 Datapacks can extend or override temporal behavior without rebuilding the mod. A datapack is not
@@ -259,8 +304,8 @@ it does not replace the whole Time Engine configuration.
 Without a matching policy, current defaults remain active:
 
 - solid vanilla and modded blocks are eligible Temporal Intercept obstacles;
-- players, `Mob` subclasses and `Projectile` subclasses use snapshot tracking defaults;
-- unknown custom entity families remain excluded until explicitly enabled;
+- players and `Mob` subclasses use snapshot tracking and phantom combat defaults;
+- projectiles and unknown custom entity families remain excluded until explicitly enabled;
 - server safety checks for dead entities, passengers, vehicles, distance and collision remain
   authoritative and cannot be bypassed by `allow`.
 

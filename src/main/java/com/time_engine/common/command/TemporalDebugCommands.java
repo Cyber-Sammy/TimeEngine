@@ -265,7 +265,9 @@ public final class TemporalDebugCommands {
                         target, Operation.SNAPSHOT, TemporalPolicyDefaults.snapshot(target));
         ResolvedPolicy combat =
                 resolver.resolveEntity(
-                        target, Operation.PHANTOM_COMBAT, TemporalPolicyDefaults.phantomCombat());
+                        target,
+                        Operation.PHANTOM_COMBAT,
+                        TemporalPolicyDefaults.phantomCombat(target));
         ResolvedPolicy intercept =
                 resolver.resolveEntity(
                         target,
@@ -322,7 +324,7 @@ public final class TemporalDebugCommands {
                         .resolveEntity(
                                 target,
                                 Operation.PHANTOM_COMBAT,
-                                TemporalPolicyDefaults.phantomCombat())
+                                TemporalPolicyDefaults.phantomCombat(target))
                         .decision()
                 == Decision.ALLOW;
     }

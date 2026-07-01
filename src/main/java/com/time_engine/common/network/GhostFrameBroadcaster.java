@@ -1,5 +1,6 @@
 package com.time_engine.common.network;
 
+import com.time_engine.common.intercept.TemporalInterceptManager;
 import com.time_engine.common.network.GhostFramePayload.GhostFrameEntity;
 import com.time_engine.common.policy.TemporalPolicy.Decision;
 import com.time_engine.common.policy.TemporalPolicy.Operation;
@@ -132,8 +133,7 @@ public final class GhostFrameBroadcaster {
                         session,
                         target,
                         scaleResolver.relativePerceivedTick(session, target, serverTick));
-        return snapshotManager
-                .getInterpolatedSnapshot(target.getUUID(), perceivedTick)
+        return snapshotForGhost(session, target, perceivedTick, snapshotManager)
                 .filter(snapshot -> isUsableSnapshot(snapshot, owner))
                 .filter(snapshot -> canRenderWithinBoundary(snapshot, owner, session))
                 .map(
@@ -143,6 +143,20 @@ public final class GhostFrameBroadcaster {
                                                 snapshot, owner.position(), session.radius()),
                                         perceivedTick,
                                         isPhantomCombatAllowed(target)));
+    }
+
+    private static Optional<EntitySnapshot> snapshotForGhost(
+            TemporalSession session,
+            Entity target,
+            double perceivedTick,
+            SnapshotManager snapshotManager) {
+        Optional<EntitySnapshot> splicedSnapshot =
+                TemporalInterceptManager.getInstance()
+                        .getSplicedSnapshot(session.sessionId(), target.getUUID(), perceivedTick);
+        if (splicedSnapshot.isPresent()) {
+            return splicedSnapshot;
+        }
+        return snapshotManager.getInterpolatedSnapshot(target.getUUID(), perceivedTick);
     }
 
     private static TemporalLayerRelation relation(
@@ -200,7 +214,7 @@ public final class GhostFrameBroadcaster {
                         .resolveEntity(
                                 target,
                                 Operation.PHANTOM_COMBAT,
-                                TemporalPolicyDefaults.phantomCombat())
+                                TemporalPolicyDefaults.phantomCombat(target))
                         .decision()
                 == Decision.ALLOW;
     }

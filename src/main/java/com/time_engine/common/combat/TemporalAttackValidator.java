@@ -1,5 +1,6 @@
 package com.time_engine.common.combat;
 
+import com.time_engine.common.intercept.TemporalInterceptManager;
 import com.time_engine.common.network.GhostFrameBoundary;
 import com.time_engine.common.policy.TemporalPolicy.Decision;
 import com.time_engine.common.policy.TemporalPolicy.Operation;
@@ -81,7 +82,7 @@ public final class TemporalAttackValidator {
             return ValidationResult.rejected(RejectionReason.INVALID_CLIENT_TICK);
         }
         Optional<EntitySnapshot> snapshotResult =
-                snapshotManager.getInterpolatedSnapshot(targetEntityId, clientPerceivedTick);
+                snapshotForAttack(session, target, clientPerceivedTick, snapshotManager);
         if (snapshotResult.isEmpty()) {
             return ValidationResult.rejected(RejectionReason.SNAPSHOT_NOT_FOUND);
         }
@@ -166,7 +167,7 @@ public final class TemporalAttackValidator {
                         .resolveEntity(
                                 target,
                                 Operation.PHANTOM_COMBAT,
-                                TemporalPolicyDefaults.phantomCombat())
+                                TemporalPolicyDefaults.phantomCombat(target))
                         .decision()
                 == Decision.ALLOW;
     }
@@ -188,6 +189,20 @@ public final class TemporalAttackValidator {
             return rawPerceivedTick;
         }
         return Math.max(rawPerceivedTick, admissionTick.getAsInt());
+    }
+
+    private static Optional<EntitySnapshot> snapshotForAttack(
+            TemporalSession session,
+            Entity target,
+            double perceivedTick,
+            SnapshotManager snapshotManager) {
+        Optional<EntitySnapshot> splicedSnapshot =
+                TemporalInterceptManager.getInstance()
+                        .getSplicedSnapshot(session.sessionId(), target.getUUID(), perceivedTick);
+        if (splicedSnapshot.isPresent()) {
+            return splicedSnapshot;
+        }
+        return snapshotManager.getInterpolatedSnapshot(target.getUUID(), perceivedTick);
     }
 
     public enum RejectionReason {
