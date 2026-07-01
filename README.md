@@ -12,6 +12,27 @@ Minimal Minecraft 1.21.1 mod prototype using NeoForge and Java 21.
 
 On Windows, use `gradlew.bat` instead of `./gradlew`.
 
+## Architecture
+
+Time Engine is currently split into three internal layers while staying in one NeoForge mod jar:
+
+- `com.time_engine.api` exposes narrow facades intended for gameplay layers.
+- `com.time_engine.engine.*` contains reusable temporal systems: sessions, snapshots, relative
+  layers, ghost frames, afterimages, phantom combat, Temporal Intercept, policies, config,
+  commands and networking payloads.
+- `com.time_engine.sandevistan.*` contains the current demo/gameplay wrapper: debug activation
+  item, item registry, keybind and HUD presentation.
+
+Dependency direction is intentional:
+
+- engine/api code must not import `com.time_engine.sandevistan`;
+- Sandevistan code may import `api` and engine services;
+- client-only code stays out of common/server paths;
+- server-authoritative validation remains in the engine layer.
+
+This is not a separate library module yet. The package split exists to keep the future public
+Sandevistan gameplay layer from becoming tangled with reusable temporal engine logic.
+
 ## Configuration
 
 NeoForge generates the configuration files after the first launch:
