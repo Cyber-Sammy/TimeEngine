@@ -4,6 +4,7 @@ import com.time_engine.engine.common.temporal.TemporalActivationService;
 import com.time_engine.engine.common.temporal.TemporalActivationService.ActivationOutcome;
 import com.time_engine.engine.common.temporal.TemporalSession;
 import com.time_engine.engine.common.temporal.TemporalSessionManager;
+import com.time_engine.engine.config.TemporalConfigService;
 import com.time_engine.engine.config.TemporalSessionSettings;
 import java.util.Optional;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,7 +13,7 @@ public final class TemporalEngineApi {
     private TemporalEngineApi() {}
 
     public static TemporalActivationResult activate(ServerPlayer player) {
-        return activate(player, TemporalSessionOptions.fromCurrentPlayerSettings(player));
+        return activate(player, toOptions(TemporalConfigService.sessionSettings(player)));
     }
 
     public static TemporalActivationResult activate(
@@ -51,6 +52,14 @@ public final class TemporalEngineApi {
                 options.cooldownTicks(),
                 options.timeScale(),
                 options.radius());
+    }
+
+    private static TemporalSessionOptions toOptions(TemporalSessionSettings settings) {
+        return new TemporalSessionOptions(
+                settings.durationTicks(),
+                settings.cooldownTicks(),
+                settings.timeScale(),
+                settings.radius());
     }
 
     private static TemporalActivationResult toActivationResult(ActivationOutcome outcome) {
