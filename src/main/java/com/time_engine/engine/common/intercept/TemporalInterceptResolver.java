@@ -12,9 +12,11 @@ import com.time_engine.engine.common.temporal.TemporalSession;
 import com.time_engine.engine.config.TimeEngineConfig;
 import com.time_engine.engine.util.ModLog;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -37,15 +39,23 @@ final class TemporalInterceptResolver {
         SnapshotManager snapshotManager = SnapshotManager.getInstance();
         TemporalScaleResolver scaleResolver = TemporalScaleResolver.server();
         List<Entity> candidates = collectCandidates(owner, session.radius());
+        Set<UUID> evaluatedTargets = new HashSet<>();
 
-        for (Entity target : candidates) {
+        for (Entity candidate : candidates) {
+            Optional<Entity> target =
+                    TemporalInterceptTargetResolver.correctionTarget(
+                            owner, candidate, evaluatedTargets);
+            if (target.isEmpty()) {
+                continue;
+            }
             evaluateSnapshot(
                     owner,
                     session,
                     state,
                     snapshotManager,
                     scaleResolver,
-                    target,
+                    candidate,
+                    target.orElseThrow(),
                     previousServerTick,
                     currentServerTick);
         }
@@ -57,6 +67,7 @@ final class TemporalInterceptResolver {
             TemporalInterceptSessionState state,
             SnapshotManager snapshotManager,
             TemporalScaleResolver scaleResolver,
+            Entity originalCandidate,
             Entity target,
             int previousServerTick,
             int currentServerTick) {
@@ -97,7 +108,8 @@ final class TemporalInterceptResolver {
                 currentSnapshot.orElseThrow(),
                 previousTargetTick,
                 currentTargetTick,
-                currentServerTick);
+                currentServerTick,
+                TemporalInterceptTargetResolver.isMountedCorrection(originalCandidate, target));
     }
 
     private static void evaluateTargetPath(
@@ -110,7 +122,8 @@ final class TemporalInterceptResolver {
             EntitySnapshot currentSnapshot,
             double previousPerceivedTick,
             double currentPerceivedTick,
-            int currentServerTick) {
+            int currentServerTick,
+            boolean mountedCorrection) {
         Optional<InterceptCandidate> candidate =
                 findFirstIntercept(state, target, previousSnapshot, currentSnapshot);
         if (candidate.isEmpty()) {
@@ -141,18 +154,36 @@ final class TemporalInterceptResolver {
             return;
         }
 
-        intercept.block().markIntercepted(target.getUUID());
-        state.recordSplice(
-                target.getUUID(),
-                collapseTick(previousPerceivedTick, currentPerceivedTick, intercept.pathProgress()),
-                currentServerTick,
-                collapseSnapshot);
+        TemporalInterceptTargetResolver.mountedStackIds(target)
+                .forEach(intercept.block()::markIntercepted);
+        double collapsedTick =
+                collapseTick(previousPerceivedTick, currentPerceivedTick, intercept.pathProgress());
+        recordSplice(state, target, collapsedTick, currentServerTick, collapseSnapshot);
         showFeedback(owner.serverLevel(), target.position());
         ModLog.diagnostic(
                 "Temporal intercept corrected entity {} using block {} from session {}",
                 target.getUUID(),
                 intercept.block().record().position(),
                 intercept.block().record().sessionId());
+        if (mountedCorrection) {
+            ModLog.diagnostic(
+                    "Temporal intercept applied mounted correction to root entity {} with {} passengers",
+                    target.getUUID(),
+                    target.getPassengers().size());
+        }
+    }
+
+    private static void recordSplice(
+            TemporalInterceptSessionState state,
+            Entity target,
+            double collapsedTick,
+            int currentServerTick,
+            EntitySnapshot collapseSnapshot) {
+        state.recordSplice(target.getUUID(), collapsedTick, currentServerTick, collapseSnapshot);
+        for (Entity passenger : target.getPassengers()) {
+            EntitySnapshot passengerSnapshot = EntitySnapshot.capture(passenger, currentServerTick);
+            recordSplice(state, passenger, collapsedTick, currentServerTick, passengerSnapshot);
+        }
     }
 
     private static Optional<InterceptCandidate> findFirstIntercept(
@@ -229,8 +260,7 @@ final class TemporalInterceptResolver {
         }
 
         teleport(level, target, safeSnapshot);
-        target.setDeltaMovement(Vec3.ZERO);
-        target.fallDistance = 0.0F;
+        resetMovement(target);
         return true;
     }
 
@@ -249,6 +279,14 @@ final class TemporalInterceptResolver {
         target.teleportTo(position.x, position.y, position.z);
         target.setYRot(safeSnapshot.yRot());
         target.setXRot(safeSnapshot.xRot());
+    }
+
+    private static void resetMovement(Entity entity) {
+        entity.setDeltaMovement(Vec3.ZERO);
+        entity.fallDistance = 0.0F;
+        for (Entity passenger : entity.getPassengers()) {
+            resetMovement(passenger);
+        }
     }
 
     private static boolean hasContinuousDimension(
@@ -278,12 +316,6 @@ final class TemporalInterceptResolver {
             return false;
         }
         if (!target.isAlive()) {
-            return false;
-        }
-        if (target.isPassenger()) {
-            return false;
-        }
-        if (target.isVehicle()) {
             return false;
         }
         if (!hasTemporalAdvantage(owner, target, scaleResolver)) {
