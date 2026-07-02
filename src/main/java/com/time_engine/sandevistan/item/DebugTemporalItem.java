@@ -22,7 +22,7 @@ public final class DebugTemporalItem extends Item {
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
 
-        return TemporalEngineApi.toggleTemporalSession(serverPlayer)
+        return TemporalEngineApi.toggle(serverPlayer).success()
                 ? InteractionResultHolder.success(stack)
                 : InteractionResultHolder.fail(stack);
     }

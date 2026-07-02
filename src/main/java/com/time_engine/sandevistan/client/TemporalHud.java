@@ -1,6 +1,7 @@
 package com.time_engine.sandevistan.client;
 
-import com.time_engine.engine.client.ClientTemporalState;
+import com.time_engine.api.client.TemporalClientApi;
+import com.time_engine.api.client.TemporalClientStateView;
 import java.util.Locale;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -24,18 +25,19 @@ public final class TemporalHud {
 
         Component text;
         int color;
-        if (ClientTemporalState.isActive()) {
+        TemporalClientStateView state = TemporalClientApi.state();
+        if (state.active()) {
             text =
                     Component.translatable(
                             "hud.time_engine.active",
-                            formatSeconds(ClientTemporalState.activeTicksRemaining()),
-                            ClientTemporalState.timeScale());
+                            formatSeconds(state.activeTicksRemaining()),
+                            state.timeScale());
             color = ACTIVE_COLOR;
-        } else if (ClientTemporalState.cooldownTicksRemaining() > 0) {
+        } else if (state.cooldownTicksRemaining() > 0) {
             text =
                     Component.translatable(
                             "hud.time_engine.cooldown",
-                            formatSeconds(ClientTemporalState.cooldownTicksRemaining()));
+                            formatSeconds(state.cooldownTicksRemaining()));
             color = COOLDOWN_COLOR;
         } else {
             return;

@@ -33,6 +33,10 @@ public final class TemporalSessionManager {
     }
 
     public boolean startSession(ServerPlayer player) {
+        return startSession(player, TemporalConfigService.sessionSettings(player));
+    }
+
+    public boolean startSession(ServerPlayer player, TemporalSessionSettings settings) {
         int currentTick = player.getServer().getTickCount();
         UUID playerId = player.getUUID();
 
@@ -43,7 +47,6 @@ public final class TemporalSessionManager {
             return false;
         }
 
-        TemporalSessionSettings settings = TemporalConfigService.sessionSettings(player);
         TemporalSession session = createSession(playerId, currentTick, settings);
         warnIfSnapshotHistoryIsTooShort(session);
         sessionsByOwner.put(playerId, session);
