@@ -22,7 +22,7 @@ Time Engine is currently split into three internal layers while staying in one N
   layers, ghost frames, afterimages, phantom combat, Temporal Intercept, policies, config,
   commands and networking payloads.
 - `com.time_engine.sandevistan.*` contains the current demo/gameplay wrapper: debug activation
-  item, item registry, keybind and HUD presentation.
+  item, tiered Sandevistan items, item registry, keybind and HUD presentation.
 
 Dependency direction is intentional:
 
@@ -34,6 +34,21 @@ Dependency direction is intentional:
 
 This is not a separate library module yet. The package split exists to keep the future public
 Sandevistan gameplay layer from becoming tangled with reusable temporal engine logic.
+
+## Sandevistan gameplay MVP
+
+The current gameplay layer provides three tiered Sandevistan items:
+
+- `sandevistan_mk1`
+- `sandevistan_mk2`
+- `sandevistan_mk3`
+
+Each tier activates a fixed `TemporalSessionOptions` profile through `TemporalEngineApi`:
+duration, cooldown, time scale and radius. Using an active Sandevistan item again stops the current
+temporal session.
+
+The keybind still uses the legacy/dev activation path based on the current runtime config. It will
+be connected to an equipped/installed Sandevistan implant in a later gameplay phase.
 
 ## Configuration
 

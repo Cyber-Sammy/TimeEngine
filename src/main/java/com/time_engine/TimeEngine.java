@@ -24,7 +24,9 @@ public final class TimeEngine {
 
     private void addCreativeTabContents(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-            event.accept(ModItems.DEBUG_ITEM);
+            event.accept(ModItems.SANDEVISTAN_MK1);
+            event.accept(ModItems.SANDEVISTAN_MK2);
+            event.accept(ModItems.SANDEVISTAN_MK3);
         }
     }
 }
