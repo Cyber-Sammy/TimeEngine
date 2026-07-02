@@ -16,7 +16,8 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
 
 Time Engine is currently split into three internal layers while staying in one NeoForge mod jar:
 
-- `com.time_engine.api` exposes narrow facades intended for gameplay layers.
+- `com.time_engine.api` exposes narrow server/client facades and read-only state models intended
+  for gameplay layers.
 - `com.time_engine.engine.*` contains reusable temporal systems: sessions, snapshots, relative
   layers, ghost frames, afterimages, phantom combat, Temporal Intercept, policies, config,
   commands and networking payloads.
@@ -26,7 +27,8 @@ Time Engine is currently split into three internal layers while staying in one N
 Dependency direction is intentional:
 
 - engine/api code must not import `com.time_engine.sandevistan`;
-- Sandevistan code may import `api` and engine services;
+- Sandevistan code should use `api` facades instead of importing engine internals directly;
+- engine code must not import API facade types; dependency direction is API -> engine;
 - client-only code stays out of common/server paths;
 - server-authoritative validation remains in the engine layer.
 

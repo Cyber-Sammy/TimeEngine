@@ -1,10 +1,8 @@
 package com.time_engine.sandevistan.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.time_engine.engine.common.network.TemporalActivationRequestPayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 public final class TimeEngineKeyMappings {
@@ -23,7 +21,7 @@ public final class TimeEngineKeyMappings {
         }
 
         while (ACTIVATE.consumeClick()) {
-            PacketDistributor.sendToServer(TemporalActivationRequestPayload.INSTANCE);
+            SandevistanClientActivation.requestToggle();
         }
     }
 }
