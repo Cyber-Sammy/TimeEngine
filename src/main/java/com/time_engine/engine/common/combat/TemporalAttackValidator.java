@@ -94,12 +94,12 @@ public final class TemporalAttackValidator {
         if (!snapshot.alive()) {
             return ValidationResult.rejected(RejectionReason.INVALID_SNAPSHOT);
         }
-        if (!GhostFrameBoundary.canRenderAtBoundary(
-                snapshot, attacker.position(), session.radius())) {
+        Optional<EntitySnapshot> boundedSnapshot =
+                boundedSnapshotForAttack(
+                        attacker, session, target, clientPerceivedTick, snapshot, snapshotManager);
+        if (boundedSnapshot.isEmpty()) {
             return ValidationResult.rejected(RejectionReason.RAY_MISSED_HISTORICAL_BOUNDS);
         }
-        EntitySnapshot boundedSnapshot =
-                GhostFrameBoundary.clampToRadius(snapshot, attacker.position(), session.radius());
 
         Vec3 attackOrigin = attacker.getEyePosition();
         OptionalDouble hitDistance =
@@ -107,7 +107,7 @@ public final class TemporalAttackValidator {
                         attackOrigin,
                         attacker.getLookAngle(),
                         TimeEngineConfig.phantomAttackReach(),
-                        boundedSnapshot.boundingBox());
+                        boundedSnapshot.orElseThrow().boundingBox());
         if (hitDistance.isEmpty()) {
             return ValidationResult.rejected(RejectionReason.RAY_MISSED_HISTORICAL_BOUNDS);
         }
@@ -203,6 +203,31 @@ public final class TemporalAttackValidator {
             return splicedSnapshot;
         }
         return snapshotManager.getInterpolatedSnapshot(target.getUUID(), perceivedTick);
+    }
+
+    private static Optional<EntitySnapshot> boundedSnapshotForAttack(
+            ServerPlayer attacker,
+            TemporalSession session,
+            Entity target,
+            double perceivedTick,
+            EntitySnapshot currentSnapshot,
+            SnapshotManager snapshotManager) {
+        double previousTick = Math.max(session.startTick(), perceivedTick - previousTickStep());
+        Optional<EntitySnapshot> previousSnapshot =
+                previousTick < perceivedTick
+                        ? snapshotForAttack(session, target, previousTick, snapshotManager)
+                                .filter(
+                                        snapshot ->
+                                                snapshot.dimension()
+                                                        .equals(attacker.level().dimension()))
+                        : Optional.empty();
+
+        return GhostFrameBoundary.resolveSegment(
+                previousSnapshot, currentSnapshot, attacker.position(), session.radius());
+    }
+
+    private static int previousTickStep() {
+        return Math.max(1, TimeEngineConfig.ghostFrameIntervalTicks());
     }
 
     public enum RejectionReason {

@@ -133,16 +133,44 @@ public final class GhostFrameBroadcaster {
                         session,
                         target,
                         scaleResolver.relativePerceivedTick(session, target, serverTick));
+        Optional<EntitySnapshot> previousSnapshot =
+                previousSnapshotForGhost(
+                        owner, target, session, serverTick, snapshotManager, scaleResolver);
         return snapshotForGhost(session, target, perceivedTick, snapshotManager)
                 .filter(snapshot -> isUsableSnapshot(snapshot, owner))
-                .filter(snapshot -> canRenderWithinBoundary(snapshot, owner, session))
+                .flatMap(
+                        snapshot ->
+                                GhostFrameBoundary.resolveSegment(
+                                        previousSnapshot,
+                                        snapshot,
+                                        owner.position(),
+                                        session.radius()))
                 .map(
                         snapshot ->
                                 new GhostFrameEntity(
-                                        GhostFrameBoundary.clampToRadius(
-                                                snapshot, owner.position(), session.radius()),
-                                        perceivedTick,
-                                        isPhantomCombatAllowed(target)));
+                                        snapshot, perceivedTick, isPhantomCombatAllowed(target)));
+    }
+
+    private static Optional<EntitySnapshot> previousSnapshotForGhost(
+            ServerPlayer owner,
+            Entity target,
+            TemporalSession session,
+            int serverTick,
+            SnapshotManager snapshotManager,
+            TemporalScaleResolver scaleResolver) {
+        int previousServerTick = Math.max(session.startTick(), serverTick - previousTickStep());
+        if (previousServerTick >= serverTick) {
+            return Optional.empty();
+        }
+
+        double previousPerceivedTick =
+                effectivePerceivedTick(
+                        snapshotManager,
+                        session,
+                        target,
+                        scaleResolver.relativePerceivedTick(session, target, previousServerTick));
+        return snapshotForGhost(session, target, previousPerceivedTick, snapshotManager)
+                .filter(snapshot -> isUsableSnapshot(snapshot, owner));
     }
 
     private static Optional<EntitySnapshot> snapshotForGhost(
@@ -204,9 +232,8 @@ public final class GhostFrameBroadcaster {
         return snapshot.dimension().equals(owner.level().dimension());
     }
 
-    private static boolean canRenderWithinBoundary(
-            EntitySnapshot snapshot, ServerPlayer owner, TemporalSession session) {
-        return GhostFrameBoundary.canRenderAtBoundary(snapshot, owner.position(), session.radius());
+    private static int previousTickStep() {
+        return Math.max(1, TimeEngineConfig.ghostFrameIntervalTicks());
     }
 
     private static boolean isPhantomCombatAllowed(Entity target) {
