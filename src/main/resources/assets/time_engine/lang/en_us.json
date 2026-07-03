@@ -16,7 +16,7 @@
   "message.time_engine.temporal.expired": "Temporal overdrive expired",
   "message.time_engine.temporal.cooldown": "Temporal overdrive cooling down: %s ticks",
   "key.categories.time_engine": "Time Engine",
-  "key.time_engine.activate": "Toggle Sandevistan",
+  "key.time_engine.activate": "Debug: Toggle temporal session",
   "hud.time_engine.active": "SANDEVISTAN ACTIVE  %ss  x%s",
   "hud.time_engine.cooldown": "SANDEVISTAN COOLDOWN  %ss",
   "screen.time_engine.config.title": "Time Engine Test Configuration",

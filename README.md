@@ -47,8 +47,10 @@ Each tier activates a fixed `TemporalSessionOptions` profile through `TemporalEn
 duration, cooldown, time scale and radius. Using an active Sandevistan item again stops the current
 temporal session.
 
-The keybind still uses the legacy/dev activation path based on the current runtime config. It will
-be connected to an equipped/installed Sandevistan implant in a later gameplay phase.
+Gameplay activation currently happens by using a Sandevistan tier item. The keybind is still a
+debug/legacy activation path based on the current runtime config, so it intentionally bypasses item
+tiers during development. It is not final gameplay behavior. A later phase will connect the keybind
+to an equipped/installed Sandevistan implant and resolve the tier server-side.
 
 ## Configuration
 
