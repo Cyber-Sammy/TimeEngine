@@ -24,4 +24,16 @@ class SandevistanActivationServiceTest {
                                         SandevistanTier.MK2))
                         .orElseThrow());
     }
+
+    @Test
+    void chooseBestTierFromGroupsReturnsHighestAvailableTierAcrossGroups() {
+        assertEquals(
+                SandevistanTier.MK3,
+                SandevistanActivationService.chooseBestTierFromGroups(
+                                List.of(
+                                        List.of(SandevistanTier.MK1),
+                                        List.of(SandevistanTier.MK2),
+                                        List.of(SandevistanTier.MK3)))
+                        .orElseThrow());
+    }
 }

@@ -4,8 +4,10 @@ import com.time_engine.api.TemporalActivationResult;
 import com.time_engine.api.TemporalEngineApi;
 import com.time_engine.sandevistan.item.SandevistanItem;
 import com.time_engine.sandevistan.item.SandevistanTier;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,6 +26,10 @@ public final class SandevistanActivationService {
     }
 
     public static Optional<TemporalActivationResult> toggleBestAvailable(ServerPlayer player) {
+        if (TemporalEngineApi.sessionState(player).isPresent()) {
+            return Optional.of(TemporalEngineApi.stop(player));
+        }
+
         Optional<SandevistanTier> tier = findBestAvailableTier(player);
         if (tier.isEmpty()) {
             player.displayClientMessage(
@@ -41,9 +47,14 @@ public final class SandevistanActivationService {
 
     @SafeVarargs
     static Optional<SandevistanTier> findBestTier(Collection<ItemStack>... stackGroups) {
+        return chooseBestTierFromGroups(extractTierGroups(stackGroups));
+    }
+
+    static Optional<SandevistanTier> chooseBestTierFromGroups(
+            Collection<? extends Collection<SandevistanTier>> tierGroups) {
         Optional<SandevistanTier> bestTier = Optional.empty();
-        for (Collection<ItemStack> stackGroup : stackGroups) {
-            Optional<SandevistanTier> groupTier = chooseBestTier(extractTiers(stackGroup));
+        for (Collection<SandevistanTier> tierGroup : tierGroups) {
+            Optional<SandevistanTier> groupTier = chooseBestTier(tierGroup);
             bestTier = chooseBetterTier(bestTier, groupTier);
         }
         return bestTier;
@@ -58,6 +69,16 @@ public final class SandevistanActivationService {
                 .map(SandevistanActivationService::tierFromStack)
                 .flatMap(Optional::stream)
                 .toList();
+    }
+
+    @SafeVarargs
+    private static List<Collection<SandevistanTier>> extractTierGroups(
+            Collection<ItemStack>... stackGroups) {
+        List<Collection<SandevistanTier>> tierGroups = new ArrayList<>(stackGroups.length);
+        for (Collection<ItemStack> stackGroup : stackGroups) {
+            tierGroups.add(extractTiers(stackGroup));
+        }
+        return tierGroups;
     }
 
     private static Optional<SandevistanTier> tierFromStack(ItemStack stack) {
