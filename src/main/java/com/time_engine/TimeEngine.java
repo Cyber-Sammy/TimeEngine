@@ -2,13 +2,13 @@ package com.time_engine;
 
 import com.time_engine.engine.common.network.ModNetworking;
 import com.time_engine.engine.config.TimeEngineConfig;
+import com.time_engine.sandevistan.network.SandevistanNetworking;
+import com.time_engine.sandevistan.registry.ModCreativeTabs;
 import com.time_engine.sandevistan.registry.ModItems;
-import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 
 @Mod(TimeEngine.MOD_ID)
 public final class TimeEngine {
@@ -16,17 +16,10 @@ public final class TimeEngine {
 
     public TimeEngine(IEventBus modEventBus, ModContainer modContainer) {
         ModItems.ITEMS.register(modEventBus);
+        ModCreativeTabs.TABS.register(modEventBus);
         modContainer.registerConfig(ModConfig.Type.COMMON, TimeEngineConfig.COMMON_SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, TimeEngineConfig.SERVER_SPEC);
-        modEventBus.addListener(this::addCreativeTabContents);
         modEventBus.addListener(ModNetworking::register);
-    }
-
-    private void addCreativeTabContents(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-            event.accept(ModItems.SANDEVISTAN_MK1);
-            event.accept(ModItems.SANDEVISTAN_MK2);
-            event.accept(ModItems.SANDEVISTAN_MK3);
-        }
+        modEventBus.addListener(SandevistanNetworking::register);
     }
 }

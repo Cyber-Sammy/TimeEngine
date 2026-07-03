@@ -36,6 +36,10 @@ public enum SandevistanTier {
         return rarity;
     }
 
+    public int priority() {
+        return ordinal();
+    }
+
     public String displayKey() {
         return "tier.time_engine.sandevistan." + id;
     }
