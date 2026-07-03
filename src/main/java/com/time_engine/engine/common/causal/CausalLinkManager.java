@@ -1,15 +1,30 @@
 package com.time_engine.engine.common.causal;
 
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import net.minecraft.world.phys.Vec3;
 
 public final class CausalLinkManager {
     private final Map<UUID, CausalLink> linksByOwner = new HashMap<>();
 
     public Optional<CausalLink> getLink(UUID ownerId) {
         return Optional.ofNullable(linksByOwner.get(ownerId));
+    }
+
+    public Collection<CausalLink> links() {
+        return List.copyOf(linksByOwner.values());
+    }
+
+    public Collection<CausalLinkView> views(int serverTick) {
+        return linksByOwner.values().stream()
+                .map(link -> CausalLinkView.from(link, serverTick))
+                .sorted(Comparator.comparing(CausalLinkView::ownerId))
+                .toList();
     }
 
     public void putLink(CausalLink link) {
@@ -56,7 +71,7 @@ public final class CausalLinkManager {
             UUID ownerId,
             CausalTargetCandidate target,
             CausalTrackingPolicy trackingPolicy,
-            net.minecraft.world.phys.Vec3 userPosition,
+            Vec3 userPosition,
             int serverTick) {
         Optional<CausalLink> link = getLink(ownerId).filter(CausalLink::active);
         if (link.isEmpty()) {

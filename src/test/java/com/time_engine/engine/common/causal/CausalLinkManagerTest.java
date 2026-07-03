@@ -2,6 +2,7 @@ package com.time_engine.engine.common.causal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Collection;
 import java.util.UUID;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -48,6 +49,25 @@ class CausalLinkManagerTest {
 
         assertEquals(TARGET_ID, refreshed.targetId());
         assertEquals(CausalLinkState.HARD_LOCK, refreshed.state());
+    }
+
+    @Test
+    void viewsExposeReadOnlyDiagnosticsForManagedLinks() {
+        CausalLinkManager manager = new CausalLinkManager();
+        manager.updateSoftLock(
+                OWNER_ID,
+                CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
+                5,
+                frame(TARGET_ID),
+                0.25D);
+
+        Collection<CausalLinkView> views = manager.views(8);
+
+        CausalLinkView view = views.iterator().next();
+        assertEquals(OWNER_ID, view.ownerId());
+        assertEquals(TARGET_ID, view.targetId());
+        assertEquals(3, view.ageTicks());
+        assertEquals(3, view.ticksSinceUpdate());
     }
 
     private static CausalTargetCandidate candidate() {
