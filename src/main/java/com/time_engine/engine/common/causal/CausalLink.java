@@ -42,6 +42,18 @@ public record CausalLink(
 
     public CausalLink refreshSoftLock(
             UUID newTargetId, int serverTick, CausalPhantomFrame frame, double newProgress) {
+        if (hardLockedAt(serverTick) && !targetId.equals(newTargetId)) {
+            return new CausalLink(
+                    ownerId,
+                    targetId,
+                    state,
+                    selectedTick,
+                    serverTick,
+                    hardLockUntilTick,
+                    latestFrame,
+                    progress);
+        }
+
         CausalLinkState refreshedState =
                 hardLockedAt(serverTick) && targetId.equals(newTargetId)
                         ? CausalLinkState.HARD_LOCK

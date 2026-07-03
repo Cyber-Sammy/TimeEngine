@@ -20,9 +20,17 @@ class CausalTrackingPolicyTest {
     }
 
     @Test
-    void lockedTargetUsesCausalLockedTrackingRadius() {
+    void lockedTargetIsKeptUntilMaxCausalTrackingDistance() {
         assertTrue(POLICY.keepsLockedTarget(USER_POSITION, candidate(11.9D)));
-        assertFalse(POLICY.keepsLockedTarget(USER_POSITION, candidate(12.1D)));
+        assertTrue(POLICY.keepsLockedTarget(USER_POSITION, candidate(14.0D)));
+        assertTrue(POLICY.keepsLockedTarget(USER_POSITION, candidate(16.0D)));
+        assertFalse(POLICY.keepsLockedTarget(USER_POSITION, candidate(16.1D)));
+    }
+
+    @Test
+    void preferredLockedTrackingRadiusIsDistinctFromHardKeepCap() {
+        assertTrue(POLICY.isInsidePreferredLockedTrackingRadius(USER_POSITION, candidate(11.9D)));
+        assertFalse(POLICY.isInsidePreferredLockedTrackingRadius(USER_POSITION, candidate(12.1D)));
     }
 
     @Test

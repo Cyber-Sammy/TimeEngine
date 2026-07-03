@@ -23,6 +23,11 @@ public record CausalTrackingPolicy(
     }
 
     public boolean keepsLockedTarget(Vec3 userPosition, CausalTargetCandidate candidate) {
+        return distance(userPosition, candidate) <= maxCausalTrackingDistance;
+    }
+
+    public boolean isInsidePreferredLockedTrackingRadius(
+            Vec3 userPosition, CausalTargetCandidate candidate) {
         return distance(userPosition, candidate) <= causalLockedTrackingRadius;
     }
 
