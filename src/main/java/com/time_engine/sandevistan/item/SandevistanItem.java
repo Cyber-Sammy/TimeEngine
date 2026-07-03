@@ -1,7 +1,7 @@
 package com.time_engine.sandevistan.item;
 
-import com.time_engine.api.TemporalEngineApi;
 import com.time_engine.api.TemporalSessionOptions;
+import com.time_engine.sandevistan.activation.SandevistanActivationService;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.ChatFormatting;
@@ -23,6 +23,10 @@ public final class SandevistanItem extends Item {
         this.tier = tier;
     }
 
+    public SandevistanTier tier() {
+        return tier;
+    }
+
     @Override
     public InteractionResultHolder<ItemStack> use(
             Level level, Player player, InteractionHand hand) {
@@ -31,13 +35,7 @@ public final class SandevistanItem extends Item {
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
 
-        if (TemporalEngineApi.sessionState(serverPlayer).isPresent()) {
-            return TemporalEngineApi.stop(serverPlayer).success()
-                    ? InteractionResultHolder.success(stack)
-                    : InteractionResultHolder.fail(stack);
-        }
-
-        return TemporalEngineApi.activate(serverPlayer, tier.options()).success()
+        return SandevistanActivationService.toggle(serverPlayer, tier).success()
                 ? InteractionResultHolder.success(stack)
                 : InteractionResultHolder.fail(stack);
     }

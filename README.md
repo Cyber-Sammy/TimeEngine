@@ -47,10 +47,14 @@ Each tier activates a fixed `TemporalSessionOptions` profile through `TemporalEn
 duration, cooldown, time scale and radius. Using an active Sandevistan item again stops the current
 temporal session.
 
-Gameplay activation currently happens by using a Sandevistan tier item. The keybind is still a
-debug/legacy activation path based on the current runtime config, so it intentionally bypasses item
-tiers during development. It is not final gameplay behavior. A later phase will connect the keybind
-to an equipped/installed Sandevistan implant and resolve the tier server-side.
+Gameplay activation happens by using a Sandevistan tier item or by pressing the activation keybind
+while carrying one. The keybind sends a Sandevistan-specific request, and the server resolves the
+best available tier from the player's inventory before calling `TemporalEngineApi.activate(...)`.
+This keeps the keybind from bypassing gameplay tier rules. A later phase will replace inventory
+lookup with an equipped/installed implant slot.
+
+The Sandevistan items are available in the Time Engine creative inventory tab. The activation
+keybind is registered in Minecraft's Controls screen under the Time Engine category.
 
 ## Configuration
 
