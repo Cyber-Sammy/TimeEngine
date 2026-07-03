@@ -51,7 +51,7 @@ public final class SandevistanActivationService {
     }
 
     static Optional<SandevistanTier> chooseBestTierFromGroups(
-            Collection<? extends Collection<SandevistanTier>> tierGroups) {
+            Collection<Collection<SandevistanTier>> tierGroups) {
         Optional<SandevistanTier> bestTier = Optional.empty();
         for (Collection<SandevistanTier> tierGroup : tierGroups) {
             Optional<SandevistanTier> groupTier = chooseBestTier(tierGroup);
