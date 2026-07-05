@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.world.phys.Vec3;
 
@@ -39,11 +40,25 @@ public final class CausalLinkManager {
         linksByOwner.clear();
     }
 
+    public void clearInactiveOwners(Set<UUID> activeOwnerIds) {
+        linksByOwner.keySet().removeIf(ownerId -> !activeOwnerIds.contains(ownerId));
+    }
+
     public Optional<CausalLink> updateSoftLock(
             UUID ownerId,
             CausalTargetSelection selection,
             int serverTick,
             CausalPhantomFrame frame,
+            double progress) {
+        return updateSoftLock(ownerId, selection, serverTick, frame, frame, progress);
+    }
+
+    public Optional<CausalLink> updateSoftLock(
+            UUID ownerId,
+            CausalTargetSelection selection,
+            int serverTick,
+            CausalPhantomFrame frame,
+            CausalPhantomFrame ownerFrame,
             double progress) {
         if (selection.selectedCandidate().isEmpty()) {
             return Optional.empty();
@@ -53,9 +68,14 @@ public final class CausalLinkManager {
         CausalLink updated =
                 getLink(ownerId)
                         .filter(CausalLink::active)
-                        .map(link -> link.refreshSoftLock(targetId, serverTick, frame, progress))
+                        .map(
+                                link ->
+                                        link.refreshSoftLock(
+                                                targetId, serverTick, frame, ownerFrame, progress))
                         .orElseGet(
-                                () -> CausalLink.softLocked(ownerId, targetId, serverTick, frame));
+                                () ->
+                                        CausalLink.softLocked(
+                                                ownerId, targetId, serverTick, frame, ownerFrame));
         putLink(updated);
         return Optional.of(updated);
     }
@@ -64,6 +84,12 @@ public final class CausalLinkManager {
         Optional<CausalLink> link = getLink(ownerId).filter(CausalLink::active);
         link.map(activeLink -> activeLink.hardLock(serverTick, hardLockTicks))
                 .ifPresent(this::putLink);
+        return getLink(ownerId);
+    }
+
+    public Optional<CausalLink> breakLink(UUID ownerId, int serverTick) {
+        Optional<CausalLink> link = getLink(ownerId).filter(CausalLink::active);
+        link.map(activeLink -> activeLink.breakLink(serverTick)).ifPresent(this::putLink);
         return getLink(ownerId);
     }
 

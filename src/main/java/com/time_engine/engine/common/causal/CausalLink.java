@@ -10,6 +10,7 @@ public record CausalLink(
         int lastUpdatedTick,
         int hardLockUntilTick,
         CausalPhantomFrame latestFrame,
+        CausalPhantomFrame ownerFrame,
         double progress) {
     public CausalLink {
         if (ownerId == null) {
@@ -21,6 +22,12 @@ public record CausalLink(
         if (state == null) {
             throw new IllegalArgumentException("state must not be null");
         }
+        if (latestFrame == null) {
+            throw new IllegalArgumentException("latestFrame must not be null");
+        }
+        if (ownerFrame == null) {
+            throw new IllegalArgumentException("ownerFrame must not be null");
+        }
         if (!Double.isFinite(progress)) {
             throw new IllegalArgumentException("progress must be finite");
         }
@@ -29,6 +36,15 @@ public record CausalLink(
 
     public static CausalLink softLocked(
             UUID ownerId, UUID targetId, int serverTick, CausalPhantomFrame latestFrame) {
+        return softLocked(ownerId, targetId, serverTick, latestFrame, latestFrame);
+    }
+
+    public static CausalLink softLocked(
+            UUID ownerId,
+            UUID targetId,
+            int serverTick,
+            CausalPhantomFrame latestFrame,
+            CausalPhantomFrame ownerFrame) {
         return new CausalLink(
                 ownerId,
                 targetId,
@@ -37,11 +53,21 @@ public record CausalLink(
                 serverTick,
                 serverTick,
                 latestFrame,
+                ownerFrame,
                 0.0D);
     }
 
     public CausalLink refreshSoftLock(
             UUID newTargetId, int serverTick, CausalPhantomFrame frame, double newProgress) {
+        return refreshSoftLock(newTargetId, serverTick, frame, frame, newProgress);
+    }
+
+    public CausalLink refreshSoftLock(
+            UUID newTargetId,
+            int serverTick,
+            CausalPhantomFrame frame,
+            CausalPhantomFrame newOwnerFrame,
+            double newProgress) {
         if (hardLockedAt(serverTick) && !targetId.equals(newTargetId)) {
             return new CausalLink(
                     ownerId,
@@ -51,6 +77,7 @@ public record CausalLink(
                     serverTick,
                     hardLockUntilTick,
                     latestFrame,
+                    ownerFrame,
                     progress);
         }
 
@@ -66,6 +93,7 @@ public record CausalLink(
                 serverTick,
                 hardLockUntilTick,
                 frame,
+                newOwnerFrame,
                 newProgress);
     }
 
@@ -78,6 +106,7 @@ public record CausalLink(
                 serverTick,
                 serverTick + Math.max(0, hardLockTicks),
                 latestFrame,
+                ownerFrame,
                 progress);
     }
 
@@ -106,6 +135,7 @@ public record CausalLink(
                 serverTick,
                 hardLockUntilTick,
                 latestFrame,
+                ownerFrame,
                 progress);
     }
 }
