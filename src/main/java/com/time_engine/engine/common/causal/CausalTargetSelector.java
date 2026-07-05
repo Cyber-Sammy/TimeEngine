@@ -234,7 +234,8 @@ public final class CausalTargetSelector {
                 return new CandidateScore(
                         candidate, candidateScore, nextPreviousCandidate, nextPreviousScore);
             }
-            return this;
+            return new CandidateScore(
+                    this.candidate, score, nextPreviousCandidate, nextPreviousScore);
         }
     }
 }

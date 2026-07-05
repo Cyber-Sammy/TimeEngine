@@ -109,6 +109,21 @@ class CausalTargetSelectorTest {
     }
 
     @Test
+    void keepsPreviousTargetWhenScoresAreCloseAndPreviousCandidateIsLast() {
+        CausalLink previous = link(TARGET_A, 0);
+
+        CausalTargetSelection selection =
+                select(
+                        Optional.of(previous),
+                        Vec3.ZERO,
+                        Vec3.ZERO,
+                        candidate(TARGET_B, new Vec3(3.6D, 0.0D, 0.0D)),
+                        candidate(TARGET_A, new Vec3(3.8D, 0.0D, 0.0D)));
+
+        assertEquals(TARGET_A, selectedTarget(selection));
+    }
+
+    @Test
     void switchesTargetWhenNewScoreSignificantlyHigher() {
         CausalLink previous = link(TARGET_A, 0);
 
