@@ -228,13 +228,12 @@ public final class CausalLinkRuntimeService {
             Optional<CausalLink> previousLink, Vec3 ownerPosition, CausalPhantomFrame targetFrame) {
         return previousLink
                 .filter(CausalLink::active)
-                .map(CausalLink::originOwnerFrame)
                 .map(
-                        ownerFrame ->
+                        link ->
                                 CausalProgressCalculator.progress(
-                                        ownerFrame.stableAnchor(),
+                                        link.originOwnerFrame().stableAnchor(),
                                         ownerPosition,
-                                        targetFrame.stableAnchor()))
+                                        link.originTargetFrame().stableAnchor()))
                 .orElse(0.0D);
     }
 
