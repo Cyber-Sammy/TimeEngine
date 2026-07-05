@@ -10,6 +10,7 @@ public record CausalLink(
         int lastUpdatedTick,
         int hardLockUntilTick,
         CausalPhantomFrame latestFrame,
+        CausalPhantomFrame originTargetFrame,
         CausalPhantomFrame originOwnerFrame,
         CausalPhantomFrame ownerFrame,
         double progress) {
@@ -25,6 +26,9 @@ public record CausalLink(
         }
         if (latestFrame == null) {
             throw new IllegalArgumentException("latestFrame must not be null");
+        }
+        if (originTargetFrame == null) {
+            throw new IllegalArgumentException("originTargetFrame must not be null");
         }
         if (originOwnerFrame == null) {
             throw new IllegalArgumentException("originOwnerFrame must not be null");
@@ -57,6 +61,7 @@ public record CausalLink(
                 serverTick,
                 serverTick,
                 latestFrame,
+                latestFrame,
                 ownerFrame,
                 ownerFrame,
                 0.0D);
@@ -82,6 +87,7 @@ public record CausalLink(
                     serverTick,
                     hardLockUntilTick,
                     latestFrame,
+                    originTargetFrame,
                     originOwnerFrame,
                     ownerFrame,
                     progress);
@@ -99,6 +105,7 @@ public record CausalLink(
                 serverTick,
                 hardLockUntilTick,
                 frame,
+                targetId.equals(newTargetId) ? originTargetFrame : frame,
                 targetId.equals(newTargetId) ? originOwnerFrame : newOwnerFrame,
                 newOwnerFrame,
                 newProgress);
@@ -113,6 +120,7 @@ public record CausalLink(
                 serverTick,
                 serverTick + Math.max(0, hardLockTicks),
                 latestFrame,
+                originTargetFrame,
                 originOwnerFrame,
                 ownerFrame,
                 progress);
@@ -143,6 +151,7 @@ public record CausalLink(
                 serverTick,
                 hardLockUntilTick,
                 latestFrame,
+                originTargetFrame,
                 originOwnerFrame,
                 ownerFrame,
                 progress);

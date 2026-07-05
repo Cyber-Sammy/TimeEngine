@@ -87,20 +87,24 @@ class CausalLinkManagerTest {
                         .orElseThrow();
 
         assertEquals(targetFrame, created.latestFrame());
+        assertEquals(targetFrame, created.originTargetFrame());
         assertEquals(ownerFrame, created.originOwnerFrame());
         assertEquals(ownerFrame, created.ownerFrame());
 
+        CausalPhantomFrame refreshedTargetFrame = frame(TARGET_ID, new Vec3(11.0D, 0.0D, 0.0D));
         CausalPhantomFrame refreshedOwnerFrame = frame(OWNER_ID, new Vec3(2.0D, 0.0D, 0.0D));
         CausalLink refreshed =
                 manager.updateSoftLock(
                                 OWNER_ID,
                                 CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
                                 11,
-                                targetFrame,
+                                refreshedTargetFrame,
                                 refreshedOwnerFrame,
                                 0.25D)
                         .orElseThrow();
 
+        assertEquals(refreshedTargetFrame, refreshed.latestFrame());
+        assertEquals(targetFrame, refreshed.originTargetFrame());
         assertEquals(ownerFrame, refreshed.originOwnerFrame());
         assertEquals(refreshedOwnerFrame, refreshed.ownerFrame());
         assertEquals(0.25D, refreshed.progress(), 1.0E-8D);
@@ -120,6 +124,36 @@ class CausalLinkManagerTest {
 
         assertEquals(CausalLinkState.BROKEN, broken.state());
         assertEquals(5, broken.lastUpdatedTick());
+    }
+
+    @Test
+    void targetSwitchResetsOriginFrames() {
+        CausalLinkManager manager = new CausalLinkManager();
+        CausalPhantomFrame firstTargetFrame = frame(TARGET_ID, new Vec3(10.0D, 0.0D, 0.0D));
+        CausalPhantomFrame firstOwnerFrame = frame(OWNER_ID, new Vec3(1.0D, 0.0D, 0.0D));
+        manager.updateSoftLock(
+                OWNER_ID,
+                CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
+                10,
+                firstTargetFrame,
+                firstOwnerFrame,
+                0.0D);
+
+        CausalPhantomFrame nextTargetFrame = frame(OTHER_TARGET_ID, new Vec3(20.0D, 0.0D, 0.0D));
+        CausalPhantomFrame nextOwnerFrame = frame(OWNER_ID, new Vec3(2.0D, 0.0D, 0.0D));
+        CausalLink switched =
+                manager.updateSoftLock(
+                                OWNER_ID,
+                                CausalTargetSelection.selected(candidate(OTHER_TARGET_ID), 20.0D),
+                                20,
+                                nextTargetFrame,
+                                nextOwnerFrame,
+                                0.0D)
+                        .orElseThrow();
+
+        assertEquals(OTHER_TARGET_ID, switched.targetId());
+        assertEquals(nextTargetFrame, switched.originTargetFrame());
+        assertEquals(nextOwnerFrame, switched.originOwnerFrame());
     }
 
     private static CausalTargetCandidate candidate() {
