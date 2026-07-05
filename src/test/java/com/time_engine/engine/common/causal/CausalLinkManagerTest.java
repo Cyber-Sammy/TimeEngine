@@ -70,6 +70,58 @@ class CausalLinkManagerTest {
         assertEquals(3, view.ticksSinceUpdate());
     }
 
+    @Test
+    void softLockStoresSeparateTargetAndOwnerFrames() {
+        CausalLinkManager manager = new CausalLinkManager();
+        CausalPhantomFrame targetFrame = frame(TARGET_ID, new Vec3(10.0D, 0.0D, 0.0D));
+        CausalPhantomFrame ownerFrame = frame(OWNER_ID, new Vec3(1.0D, 0.0D, 0.0D));
+
+        CausalLink created =
+                manager.updateSoftLock(
+                                OWNER_ID,
+                                CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
+                                10,
+                                targetFrame,
+                                ownerFrame,
+                                0.25D)
+                        .orElseThrow();
+
+        assertEquals(targetFrame, created.latestFrame());
+        assertEquals(ownerFrame, created.originOwnerFrame());
+        assertEquals(ownerFrame, created.ownerFrame());
+
+        CausalPhantomFrame refreshedOwnerFrame = frame(OWNER_ID, new Vec3(2.0D, 0.0D, 0.0D));
+        CausalLink refreshed =
+                manager.updateSoftLock(
+                                OWNER_ID,
+                                CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
+                                11,
+                                targetFrame,
+                                refreshedOwnerFrame,
+                                0.25D)
+                        .orElseThrow();
+
+        assertEquals(ownerFrame, refreshed.originOwnerFrame());
+        assertEquals(refreshedOwnerFrame, refreshed.ownerFrame());
+        assertEquals(0.25D, refreshed.progress(), 1.0E-8D);
+    }
+
+    @Test
+    void breakLinkMarksActiveLinkAsBroken() {
+        CausalLinkManager manager = new CausalLinkManager();
+        manager.updateSoftLock(
+                OWNER_ID,
+                CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
+                0,
+                frame(TARGET_ID),
+                0.0D);
+
+        CausalLink broken = manager.breakLink(OWNER_ID, 5).orElseThrow();
+
+        assertEquals(CausalLinkState.BROKEN, broken.state());
+        assertEquals(5, broken.lastUpdatedTick());
+    }
+
     private static CausalTargetCandidate candidate() {
         return candidate(TARGET_ID);
     }
@@ -83,10 +135,14 @@ class CausalLinkManagerTest {
     }
 
     private static CausalPhantomFrame frame(UUID targetId) {
+        return frame(targetId, Vec3.ZERO);
+    }
+
+    private static CausalPhantomFrame frame(UUID targetId, Vec3 anchor) {
         return new CausalPhantomFrame(
                 targetId,
                 0,
-                Vec3.ZERO,
+                anchor,
                 bounds(),
                 CausalPhantomPoseState.standing(),
                 CausalPhantomActionState.NONE,

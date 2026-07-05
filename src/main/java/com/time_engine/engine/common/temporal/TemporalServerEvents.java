@@ -1,6 +1,7 @@
 package com.time_engine.engine.common.temporal;
 
 import com.time_engine.TimeEngine;
+import com.time_engine.engine.common.causal.CausalLinkRuntimeService;
 import com.time_engine.engine.common.combat.TemporalCombatService;
 import com.time_engine.engine.common.command.TemporalDebugCommands;
 import com.time_engine.engine.common.intercept.TemporalInterceptManager;
@@ -29,6 +30,7 @@ public final class TemporalServerEvents {
                 .tick(event.getServer())
                 .forEach(ModNetworking::sendState);
         SnapshotManager.getInstance().tick(event.getServer());
+        CausalLinkRuntimeService.getInstance().tick(event.getServer());
         TemporalInterceptManager.getInstance().tick(event.getServer());
         GhostFrameBroadcaster.tick(event.getServer());
         AfterimageBroadcaster.tick(event.getServer());
@@ -90,6 +92,7 @@ public final class TemporalServerEvents {
         SnapshotManager.getInstance().clear();
         TemporalSessionManager.getInstance().clear();
         TemporalCombatService.getInstance().clear();
+        CausalLinkRuntimeService.getInstance().clear();
         TemporalInterceptManager.getInstance().clear();
     }
 }
