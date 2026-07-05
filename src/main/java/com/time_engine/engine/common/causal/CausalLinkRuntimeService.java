@@ -1,6 +1,10 @@
 package com.time_engine.engine.common.causal;
 
 import com.time_engine.engine.common.intercept.TemporalInterceptManager;
+import com.time_engine.engine.common.policy.TemporalPolicy.Decision;
+import com.time_engine.engine.common.policy.TemporalPolicy.Operation;
+import com.time_engine.engine.common.policy.TemporalPolicyDefaults;
+import com.time_engine.engine.common.policy.TemporalPolicyResolver;
 import com.time_engine.engine.common.snapshot.EntitySnapshot;
 import com.time_engine.engine.common.snapshot.SnapshotManager;
 import com.time_engine.engine.common.temporal.TemporalLayerRelation;
@@ -133,6 +137,7 @@ public final class CausalLinkRuntimeService {
     private Optional<CausalRuntimeCandidate> createCandidate(
             ServerPlayer owner, Entity target, TemporalSession session, int serverTick) {
         TemporalLayerRelation relation = relation(owner, target);
+        boolean allowedByPolicy = isPhantomCombatAllowed(target);
         double perceivedTick =
                 perceivedTick(owner, target, session, serverTick, TemporalScaleResolver.server());
         return snapshotFor(session, target, perceivedTick)
@@ -140,7 +145,8 @@ public final class CausalLinkRuntimeService {
                 .map(
                         snapshot ->
                                 CausalRuntimeCandidate.from(
-                                        snapshot, relation.allowsAttackableGhost()));
+                                        snapshot,
+                                        relation.allowsAttackableGhost() && allowedByPolicy));
     }
 
     private double perceivedTick(
@@ -222,7 +228,7 @@ public final class CausalLinkRuntimeService {
             Optional<CausalLink> previousLink, Vec3 ownerPosition, CausalPhantomFrame targetFrame) {
         return previousLink
                 .filter(CausalLink::active)
-                .map(CausalLink::ownerFrame)
+                .map(CausalLink::originOwnerFrame)
                 .map(
                         ownerFrame ->
                                 CausalProgressCalculator.progress(
@@ -254,6 +260,16 @@ public final class CausalLinkRuntimeService {
             return false;
         }
         return snapshot.dimension().equals(owner.level().dimension());
+    }
+
+    private static boolean isPhantomCombatAllowed(Entity target) {
+        return TemporalPolicyResolver.getInstance()
+                        .resolveEntity(
+                                target,
+                                Operation.PHANTOM_COMBAT,
+                                TemporalPolicyDefaults.phantomCombat(target))
+                        .decision()
+                == Decision.ALLOW;
     }
 
     private record CausalRuntimeCandidate(

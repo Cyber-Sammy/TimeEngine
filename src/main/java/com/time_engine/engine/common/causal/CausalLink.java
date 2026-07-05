@@ -10,6 +10,7 @@ public record CausalLink(
         int lastUpdatedTick,
         int hardLockUntilTick,
         CausalPhantomFrame latestFrame,
+        CausalPhantomFrame originOwnerFrame,
         CausalPhantomFrame ownerFrame,
         double progress) {
     public CausalLink {
@@ -24,6 +25,9 @@ public record CausalLink(
         }
         if (latestFrame == null) {
             throw new IllegalArgumentException("latestFrame must not be null");
+        }
+        if (originOwnerFrame == null) {
+            throw new IllegalArgumentException("originOwnerFrame must not be null");
         }
         if (ownerFrame == null) {
             throw new IllegalArgumentException("ownerFrame must not be null");
@@ -54,6 +58,7 @@ public record CausalLink(
                 serverTick,
                 latestFrame,
                 ownerFrame,
+                ownerFrame,
                 0.0D);
     }
 
@@ -77,6 +82,7 @@ public record CausalLink(
                     serverTick,
                     hardLockUntilTick,
                     latestFrame,
+                    originOwnerFrame,
                     ownerFrame,
                     progress);
         }
@@ -93,6 +99,7 @@ public record CausalLink(
                 serverTick,
                 hardLockUntilTick,
                 frame,
+                targetId.equals(newTargetId) ? originOwnerFrame : newOwnerFrame,
                 newOwnerFrame,
                 newProgress);
     }
@@ -106,6 +113,7 @@ public record CausalLink(
                 serverTick,
                 serverTick + Math.max(0, hardLockTicks),
                 latestFrame,
+                originOwnerFrame,
                 ownerFrame,
                 progress);
     }
@@ -135,6 +143,7 @@ public record CausalLink(
                 serverTick,
                 hardLockUntilTick,
                 latestFrame,
+                originOwnerFrame,
                 ownerFrame,
                 progress);
     }

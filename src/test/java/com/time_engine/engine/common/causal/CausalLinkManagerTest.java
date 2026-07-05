@@ -87,18 +87,22 @@ class CausalLinkManagerTest {
                         .orElseThrow();
 
         assertEquals(targetFrame, created.latestFrame());
+        assertEquals(ownerFrame, created.originOwnerFrame());
         assertEquals(ownerFrame, created.ownerFrame());
 
+        CausalPhantomFrame refreshedOwnerFrame = frame(OWNER_ID, new Vec3(2.0D, 0.0D, 0.0D));
         CausalLink refreshed =
                 manager.updateSoftLock(
                                 OWNER_ID,
                                 CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
                                 11,
                                 targetFrame,
-                                ownerFrame,
+                                refreshedOwnerFrame,
                                 0.25D)
                         .orElseThrow();
 
+        assertEquals(ownerFrame, refreshed.originOwnerFrame());
+        assertEquals(refreshedOwnerFrame, refreshed.ownerFrame());
         assertEquals(0.25D, refreshed.progress(), 1.0E-8D);
     }
 
