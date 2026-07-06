@@ -20,12 +20,14 @@ public final class ClientGameEvents {
             ClientTemporalState.reset();
             ClientGhostState.clear();
             ClientAfterimageState.clear();
+            ClientCausalLinkState.clear();
             return;
         }
         if (!ClientTemporalState.isActive()) {
             ClientGhostState.clear();
         }
         ClientAfterimageState.tick();
+        ClientCausalLinkState.tick();
     }
 
     @SubscribeEvent
