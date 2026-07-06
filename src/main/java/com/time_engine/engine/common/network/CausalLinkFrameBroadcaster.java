@@ -6,9 +6,11 @@ import com.time_engine.engine.common.causal.CausalPhantomFrame;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -30,47 +32,58 @@ public final class CausalLinkFrameBroadcaster {
 
     private static List<Delivery> deliveriesFor(
             MinecraftServer server, CausalLink link, int serverTick) {
-        ServerPlayer target = server.getPlayerList().getPlayer(link.targetId());
-        if (target == null) {
+        ServerPlayer owner = server.getPlayerList().getPlayer(link.ownerId());
+        if (owner == null) {
             return List.of();
         }
 
-        CausalLinkFramePayload payload = payloadFor(link, target, serverTick);
+        Entity target = owner.serverLevel().getEntity(link.targetId());
+        CausalLinkFramePayload payload =
+                payloadFor(
+                        link,
+                        owner.level().dimension().location(),
+                        targetAnchor(target, link),
+                        serverTick);
         List<Delivery> deliveries = new ArrayList<>();
-        deliveries.add(new Delivery(target, payload));
-        ownerFor(server, link, target)
-                .ifPresent(owner -> deliveries.add(new Delivery(owner, payload)));
+        targetPlayer(target, owner)
+                .ifPresent(player -> deliveries.add(new Delivery(player, payload)));
+        deliveries.add(new Delivery(owner, payload));
         return deliveries;
     }
 
-    private static CausalLinkFramePayload payloadFor(
-            CausalLink link, ServerPlayer target, int serverTick) {
+    static CausalLinkFramePayload payloadFor(
+            CausalLink link, ResourceLocation dimension, Vec3 targetAnchor, int serverTick) {
         return new CausalLinkFramePayload(
                 link.ownerId(),
                 link.targetId(),
                 link.state(),
                 serverTick,
                 link.progress(),
-                target.level().dimension().location(),
-                pursuitRenderState(link, target.position()),
+                dimension,
+                pursuitRenderState(link, targetAnchor),
                 renderState(link.latestFrame()),
                 renderState(link.originOwnerFrame()),
                 renderState(link.originTargetFrame()));
     }
 
-    private static Optional<ServerPlayer> ownerFor(
-            MinecraftServer server, CausalLink link, ServerPlayer target) {
-        if (link.ownerId().equals(target.getUUID())) {
+    private static Vec3 targetAnchor(Entity target, CausalLink link) {
+        if (target == null) {
+            return link.latestFrame().stableAnchor();
+        }
+        return target.position();
+    }
+
+    private static Optional<ServerPlayer> targetPlayer(Entity target, ServerPlayer owner) {
+        if (!(target instanceof ServerPlayer targetPlayer)) {
             return Optional.empty();
         }
-        ServerPlayer owner = server.getPlayerList().getPlayer(link.ownerId());
-        if (owner == null) {
+        if (targetPlayer.getUUID().equals(owner.getUUID())) {
             return Optional.empty();
         }
-        if (owner.level().dimension() != target.level().dimension()) {
+        if (targetPlayer.level().dimension() != owner.level().dimension()) {
             return Optional.empty();
         }
-        return Optional.of(owner);
+        return Optional.of(targetPlayer);
     }
 
     static TemporalEntityRenderState pursuitRenderState(CausalLink link, Vec3 targetAnchor) {
