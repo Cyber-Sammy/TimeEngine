@@ -19,6 +19,10 @@ public final class TemporalDebugRenderer {
     private static final float AFTERIMAGE_RED = 0.8F;
     private static final float AFTERIMAGE_GREEN = 0.3F;
     private static final float AFTERIMAGE_BLUE = 1.0F;
+    private static final float PURSUIT_RED = 1.0F;
+    private static final float PURSUIT_GREEN = 0.25F;
+    private static final float PURSUIT_BLUE = 0.05F;
+    private static final float PURSUIT_ALPHA = 0.9F;
 
     private TemporalDebugRenderer() {}
 
@@ -60,6 +64,16 @@ public final class TemporalDebugRenderer {
                                                 AFTERIMAGE_GREEN,
                                                 AFTERIMAGE_BLUE,
                                                 afterimage.alpha())));
+        ClientCausalLinkState.getRenderStates()
+                .forEach(
+                        state ->
+                                boxes.add(
+                                        new DebugBox(
+                                                state.boundingBox(),
+                                                PURSUIT_RED,
+                                                PURSUIT_GREEN,
+                                                PURSUIT_BLUE,
+                                                PURSUIT_ALPHA)));
         return boxes;
     }
 

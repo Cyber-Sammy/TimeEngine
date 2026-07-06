@@ -2,6 +2,7 @@ package com.time_engine.engine.client;
 
 import com.time_engine.TimeEngine;
 import com.time_engine.engine.common.network.AfterimagePayload;
+import com.time_engine.engine.common.network.CausalLinkFramePayload;
 import com.time_engine.engine.common.network.GhostFramePayload;
 import com.time_engine.engine.common.network.ModNetworking;
 import com.time_engine.engine.common.network.TemporalConfigPayload;
@@ -32,6 +33,10 @@ public final class ClientNetworking {
                         AfterimagePayload.STREAM_CODEC,
                         ClientNetworking::handleAfterimage)
                 .playToClient(
+                        CausalLinkFramePayload.TYPE,
+                        CausalLinkFramePayload.STREAM_CODEC,
+                        ClientNetworking::handleCausalLinkFrame)
+                .playToClient(
                         TemporalConfigPayload.TYPE,
                         TemporalConfigPayload.STREAM_CODEC,
                         ClientNetworking::handleTemporalConfig);
@@ -50,6 +55,11 @@ public final class ClientNetworking {
 
     private static void handleAfterimage(AfterimagePayload payload, IPayloadContext context) {
         ClientAfterimageState.apply(payload);
+    }
+
+    private static void handleCausalLinkFrame(
+            CausalLinkFramePayload payload, IPayloadContext context) {
+        ClientCausalLinkState.apply(payload);
     }
 
     private static void handleTemporalConfig(

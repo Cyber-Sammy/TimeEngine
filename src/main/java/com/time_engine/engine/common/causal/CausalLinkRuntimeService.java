@@ -88,7 +88,7 @@ public final class CausalLinkRuntimeService {
                         previousLink,
                         candidates.stream().map(CausalRuntimeCandidate::candidate).toList(),
                         serverTick);
-        updateLink(owner, previousLink, candidates, selection, serverTick);
+        updateLink(owner, previousLink, candidates, selection, tuning.trackingPolicy(), serverTick);
     }
 
     private CausalTuning tuningFor(TemporalSession session) {
@@ -182,15 +182,104 @@ public final class CausalLinkRuntimeService {
             Optional<CausalLink> previousLink,
             Collection<CausalRuntimeCandidate> candidates,
             CausalTargetSelection selection,
+            CausalTrackingPolicy trackingPolicy,
             int serverTick) {
         Optional<CausalRuntimeCandidate> selectedCandidate =
                 selectedRuntimeCandidate(candidates, selection);
         if (selectedCandidate.isEmpty()) {
+            Optional<CausalRuntimeCandidate> retainedCandidate =
+                    retainPreviousCandidate(owner, previousLink, candidates, trackingPolicy);
+            if (retainedCandidate.isPresent()) {
+                refreshRetainedLink(owner, previousLink, retainedCandidate.get(), serverTick);
+                return;
+            }
             breakPreviousLink(owner, previousLink, serverTick);
             return;
         }
 
         CausalRuntimeCandidate runtimeCandidate = selectedCandidate.get();
+        CausalPhantomFrame ownerFrame = CausalPhantomFrame.capture(owner, serverTick);
+        double progress = progress(previousLink, owner.position(), runtimeCandidate.frame());
+        linkManager.updateSoftLock(
+                owner.getUUID(),
+                selection,
+                serverTick,
+                runtimeCandidate.frame(),
+                ownerFrame,
+                progress);
+    }
+
+    private Optional<CausalRuntimeCandidate> retainPreviousCandidate(
+            ServerPlayer owner,
+            Optional<CausalLink> previousLink,
+            Collection<CausalRuntimeCandidate> candidates,
+            CausalTrackingPolicy trackingPolicy) {
+        if (previousLink.isEmpty()) {
+            return Optional.empty();
+        }
+
+        CausalLink link = previousLink.get();
+        if (!canRetainPreviousLink(owner, link)) {
+            return Optional.empty();
+        }
+
+        return currentCandidateForPrevious(link, candidates)
+                .or(() -> lastKnownCandidateForPrevious(link))
+                .filter(
+                        candidate ->
+                                trackingPolicy.keepsLockedTarget(
+                                        owner.position(), candidate.candidate()));
+    }
+
+    private boolean canRetainPreviousLink(ServerPlayer owner, CausalLink link) {
+        if (!link.active()) {
+            return false;
+        }
+
+        Entity target = owner.serverLevel().getEntity(link.targetId());
+        if (target == null) {
+            return false;
+        }
+        if (!target.isAlive()) {
+            return false;
+        }
+        if (target.level().dimension() != owner.level().dimension()) {
+            return false;
+        }
+        if (!relation(owner, target).allowsAttackableGhost()) {
+            return false;
+        }
+        return isPhantomCombatAllowed(target);
+    }
+
+    private Optional<CausalRuntimeCandidate> currentCandidateForPrevious(
+            CausalLink previousLink, Collection<CausalRuntimeCandidate> candidates) {
+        return candidates.stream()
+                .filter(candidate -> candidate.matches(previousLink.targetId()))
+                .findFirst();
+    }
+
+    private Optional<CausalRuntimeCandidate> lastKnownCandidateForPrevious(
+            CausalLink previousLink) {
+        CausalPhantomFrame frame = previousLink.latestFrame();
+        return Optional.of(
+                new CausalRuntimeCandidate(
+                        new CausalTargetCandidate(
+                                previousLink.targetId(),
+                                frame.stableAnchor(),
+                                frame.authoritativeBounds(),
+                                false,
+                                true),
+                        frame));
+    }
+
+    private void refreshRetainedLink(
+            ServerPlayer owner,
+            Optional<CausalLink> previousLink,
+            CausalRuntimeCandidate runtimeCandidate,
+            int serverTick) {
+        CausalTargetSelection selection =
+                CausalTargetSelection.selected(runtimeCandidate.candidate(), 0.0D);
         CausalPhantomFrame ownerFrame = CausalPhantomFrame.capture(owner, serverTick);
         double progress = progress(previousLink, owner.position(), runtimeCandidate.frame());
         linkManager.updateSoftLock(
@@ -233,7 +322,7 @@ public final class CausalLinkRuntimeService {
                                 CausalProgressCalculator.progress(
                                         link.originOwnerFrame().stableAnchor(),
                                         ownerPosition,
-                                        link.originTargetFrame().stableAnchor()))
+                                        targetFrame.stableAnchor()))
                 .orElse(0.0D);
     }
 
