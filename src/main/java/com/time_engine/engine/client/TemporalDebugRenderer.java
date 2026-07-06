@@ -2,6 +2,7 @@ package com.time_engine.engine.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.time_engine.engine.config.TimeEngineClientConfig;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -42,18 +43,39 @@ public final class TemporalDebugRenderer {
 
     private static List<DebugBox> collectBoxes(float partialTick) {
         List<DebugBox> boxes = new ArrayList<>();
-        if (ClientTemporalState.isActive()) {
-            ClientGhostState.getRenderStates(partialTick)
-                    .forEach(
-                            state ->
-                                    boxes.add(
-                                            new DebugBox(
-                                                    state.boundingBox(),
-                                                    GHOST_RED,
-                                                    GHOST_GREEN,
-                                                    GHOST_BLUE,
-                                                    GHOST_ALPHA)));
+        if (shouldRenderGhostDebugAabbs()) {
+            addGhostDebugBoxes(boxes, partialTick);
         }
+        if (TimeEngineClientConfig.showAfterimageDebugAabb()) {
+            addAfterimageDebugBoxes(boxes, partialTick);
+        }
+        if (TimeEngineClientConfig.showCausalPursuitDebugAabb()) {
+            addCausalPursuitDebugBoxes(boxes);
+        }
+        return boxes;
+    }
+
+    private static boolean shouldRenderGhostDebugAabbs() {
+        if (!TimeEngineClientConfig.showGhostDebugAabb()) {
+            return false;
+        }
+        return ClientTemporalState.isActive();
+    }
+
+    private static void addGhostDebugBoxes(List<DebugBox> boxes, float partialTick) {
+        ClientGhostState.getRenderStates(partialTick)
+                .forEach(
+                        state ->
+                                boxes.add(
+                                        new DebugBox(
+                                                state.boundingBox(),
+                                                GHOST_RED,
+                                                GHOST_GREEN,
+                                                GHOST_BLUE,
+                                                GHOST_ALPHA)));
+    }
+
+    private static void addAfterimageDebugBoxes(List<DebugBox> boxes, float partialTick) {
         ClientAfterimageState.getRenderStates(partialTick)
                 .forEach(
                         afterimage ->
@@ -64,6 +86,9 @@ public final class TemporalDebugRenderer {
                                                 AFTERIMAGE_GREEN,
                                                 AFTERIMAGE_BLUE,
                                                 afterimage.alpha())));
+    }
+
+    private static void addCausalPursuitDebugBoxes(List<DebugBox> boxes) {
         ClientCausalLinkState.getRenderStates()
                 .forEach(
                         state ->
@@ -74,7 +99,6 @@ public final class TemporalDebugRenderer {
                                                 PURSUIT_GREEN,
                                                 PURSUIT_BLUE,
                                                 PURSUIT_ALPHA)));
-        return boxes;
     }
 
     private static void renderBoxes(RenderLevelStageEvent event, List<DebugBox> boxes) {

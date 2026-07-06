@@ -1,6 +1,7 @@
 package com.time_engine.engine.client;
 
 import com.time_engine.engine.client.ClientCausalLinkState.CausalLinkDebugView;
+import com.time_engine.engine.config.TimeEngineClientConfig;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +37,9 @@ public final class CausalLinkDebugHud {
     }
 
     private static boolean canRender(Minecraft minecraft) {
+        if (!TimeEngineClientConfig.showCausalDebugHud()) {
+            return false;
+        }
         if (minecraft.options.hideGui) {
             return false;
         }

@@ -1,6 +1,7 @@
 package com.time_engine;
 
 import com.time_engine.engine.common.network.ModNetworking;
+import com.time_engine.engine.config.TimeEngineClientConfig;
 import com.time_engine.engine.config.TimeEngineConfig;
 import com.time_engine.sandevistan.network.SandevistanNetworking;
 import com.time_engine.sandevistan.registry.ModCreativeTabs;
@@ -18,6 +19,7 @@ public final class TimeEngine {
         ModItems.ITEMS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
         modContainer.registerConfig(ModConfig.Type.COMMON, TimeEngineConfig.COMMON_SPEC);
+        modContainer.registerConfig(ModConfig.Type.CLIENT, TimeEngineClientConfig.CLIENT_SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, TimeEngineConfig.SERVER_SPEC);
         modEventBus.addListener(ModNetworking::register);
         modEventBus.addListener(SandevistanNetworking::register);
