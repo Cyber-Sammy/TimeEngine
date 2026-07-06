@@ -76,8 +76,8 @@ public final class CausalLinkRuntimeService {
 
         CausalTuning tuning = tuningFor(session);
         Optional<CausalLink> previousLink = linkManager.getLink(owner.getUUID());
-        Collection<CausalRuntimeCandidate> candidates =
-                collectCandidates(owner, session, serverTick, tuning.trackingPolicy());
+        Collection<CausalRuntimeCandidate> runtimeCandidates =
+                collectRuntimeCandidates(owner, session, serverTick, tuning.trackingPolicy());
         CausalTargetSelection selection =
                 targetSelector.select(
                         owner.getUUID(),
@@ -86,9 +86,15 @@ public final class CausalLinkRuntimeService {
                         owner.getDeltaMovement(),
                         tuning.trackingPolicy(),
                         previousLink,
-                        candidates.stream().map(CausalRuntimeCandidate::candidate).toList(),
+                        runtimeCandidates.stream().map(CausalRuntimeCandidate::candidate).toList(),
                         serverTick);
-        updateLink(owner, previousLink, candidates, selection, tuning.trackingPolicy(), serverTick);
+        updateLink(
+                owner,
+                previousLink,
+                runtimeCandidates,
+                selection,
+                tuning.trackingPolicy(),
+                serverTick);
     }
 
     private CausalTuning tuningFor(TemporalSession session) {
@@ -97,7 +103,7 @@ public final class CausalLinkRuntimeService {
         return CausalTuning.of(session.radius(), lockedRadius, maxDistance);
     }
 
-    private Collection<CausalRuntimeCandidate> collectCandidates(
+    private Collection<CausalRuntimeCandidate> collectRuntimeCandidates(
             ServerPlayer owner,
             TemporalSession session,
             int serverTick,
@@ -224,7 +230,7 @@ public final class CausalLinkRuntimeService {
         }
 
         return currentCandidateForPrevious(link, candidates)
-                .or(() -> lastKnownCandidateForPrevious(link))
+                .or(() -> lastKnownFrameCandidateForPreviousTarget(link))
                 .filter(
                         candidate ->
                                 trackingPolicy.keepsLockedTarget(
@@ -259,7 +265,7 @@ public final class CausalLinkRuntimeService {
                 .findFirst();
     }
 
-    private Optional<CausalRuntimeCandidate> lastKnownCandidateForPrevious(
+    private Optional<CausalRuntimeCandidate> lastKnownFrameCandidateForPreviousTarget(
             CausalLink previousLink) {
         CausalPhantomFrame frame = previousLink.latestFrame();
         return Optional.of(
