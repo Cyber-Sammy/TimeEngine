@@ -30,19 +30,57 @@ public final class TimeEngineConfig {
 
     static {
         ModConfigSpec.Builder commonBuilder = new ModConfigSpec.Builder();
+        DIAGNOSTIC_LOGGING = registerLoggingConfig(commonBuilder);
+        COMMON_SPEC = commonBuilder.build();
+
+        ModConfigSpec.Builder serverBuilder = new ModConfigSpec.Builder();
+        SessionConfig sessionConfig = registerSessionConfig(serverBuilder);
+        SnapshotConfig snapshotConfig = registerSnapshotConfig(serverBuilder);
+        NetworkingConfig networkingConfig = registerNetworkingConfig(serverBuilder);
+        InterceptConfig interceptConfig = registerInterceptConfig(serverBuilder);
+        CombatConfig combatConfig = registerCombatConfig(serverBuilder);
+
+        DURATION_TICKS = sessionConfig.durationTicks();
+        COOLDOWN_TICKS = sessionConfig.cooldownTicks();
+        TIME_SCALE = sessionConfig.timeScale();
+        RADIUS = sessionConfig.radius();
+        SNAPSHOT_HISTORY_TICKS = snapshotConfig.historyTicks();
+        MAX_TRACKED_ENTITIES_PER_SESSION = snapshotConfig.maxTrackedEntitiesPerSession();
+        SNAPSHOT_PLAYERS_ALWAYS = snapshotConfig.snapshotPlayersAlways();
+        TRACK_NEW_ENTITIES_ENTERING_SESSION_RADIUS =
+                snapshotConfig.trackNewEntitiesEnteringSessionRadius();
+        GHOST_FRAME_INTERVAL_TICKS = networkingConfig.ghostFrameIntervalTicks();
+        AFTERIMAGE_INTERVAL_TICKS = networkingConfig.afterimageIntervalTicks();
+        AFTERIMAGE_LIFETIME_TICKS = networkingConfig.afterimageLifetimeTicks();
+        AFTERIMAGE_OBSERVER_RADIUS = networkingConfig.afterimageObserverRadius();
+        TEMPORAL_INTERCEPT_ENABLED = interceptConfig.temporalInterceptEnabled();
+        MAX_TEMPORAL_BLOCKS_PER_SESSION = interceptConfig.maxTemporalBlocksPerSession();
+        MAX_INTERCEPT_CORRECTION_DISTANCE = interceptConfig.maxInterceptCorrectionDistance();
+        PHANTOM_ATTACK_REACH = combatConfig.phantomAttackReach();
+        PHANTOM_DAMAGE_MULTIPLIER = combatConfig.phantomDamageMultiplier();
+        PHANTOM_ATTACK_COOLDOWN_TICKS = combatConfig.phantomAttackCooldownTicks();
+        PHANTOM_ALLOWED_HIT_TICK_DRIFT = combatConfig.phantomAllowedHitTickDrift();
+        SERVER_SPEC = serverBuilder.build();
+    }
+
+    private TimeEngineConfig() {}
+
+    private static ModConfigSpec.BooleanValue registerLoggingConfig(
+            ModConfigSpec.Builder commonBuilder) {
         commonBuilder.push("logging");
-        DIAGNOSTIC_LOGGING =
+        ModConfigSpec.BooleanValue diagnosticLogging =
                 commonBuilder
                         .comment("Enable diagnostic Time Engine lifecycle logs.")
                         .define(
                                 "diagnosticLogging",
                                 TemporalConfigSnapshot.defaults().diagnosticLogging());
         commonBuilder.pop();
-        COMMON_SPEC = commonBuilder.build();
+        return diagnosticLogging;
+    }
 
-        ModConfigSpec.Builder serverBuilder = new ModConfigSpec.Builder();
+    private static SessionConfig registerSessionConfig(ModConfigSpec.Builder serverBuilder) {
         serverBuilder.push("temporalSession");
-        DURATION_TICKS =
+        ModConfigSpec.IntValue durationTicks =
                 serverBuilder
                         .comment(
                                 "Duration of a temporal session in server ticks. 20 ticks = 1 second.")
@@ -51,7 +89,7 @@ public final class TimeEngineConfig {
                                 TemporalConstants.DEFAULT_DURATION_TICKS,
                                 TemporalConfigSnapshot.MIN_DURATION_TICKS,
                                 TemporalConfigSnapshot.MAX_DURATION_TICKS);
-        COOLDOWN_TICKS =
+        ModConfigSpec.IntValue cooldownTicks =
                 serverBuilder
                         .comment("Cooldown after a temporal session ends, in server ticks.")
                         .defineInRange(
@@ -59,7 +97,7 @@ public final class TimeEngineConfig {
                                 TemporalConstants.DEFAULT_COOLDOWN_TICKS,
                                 TemporalConfigSnapshot.MIN_COOLDOWN_TICKS,
                                 TemporalConfigSnapshot.MAX_COOLDOWN_TICKS);
-        TIME_SCALE =
+        ModConfigSpec.DoubleValue timeScale =
                 serverBuilder
                         .comment(
                                 "Rate at which the perceived phantom timeline advances. Must be greater than 0 and at most 1.")
@@ -68,7 +106,7 @@ public final class TimeEngineConfig {
                                 (double) TemporalConstants.DEFAULT_TIME_SCALE,
                                 TemporalConfigSnapshot.MIN_TIME_SCALE,
                                 TemporalConfigSnapshot.MAX_TIME_SCALE);
-        RADIUS =
+        ModConfigSpec.DoubleValue radius =
                 serverBuilder
                         .comment("Entity tracking radius for a temporal session, in blocks.")
                         .defineInRange(
@@ -77,9 +115,12 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.MIN_RADIUS,
                                 TemporalConfigSnapshot.MAX_RADIUS);
         serverBuilder.pop();
+        return new SessionConfig(durationTicks, cooldownTicks, timeScale, radius);
+    }
 
+    private static SnapshotConfig registerSnapshotConfig(ModConfigSpec.Builder serverBuilder) {
         serverBuilder.push("snapshots");
-        SNAPSHOT_HISTORY_TICKS =
+        ModConfigSpec.IntValue historyTicks =
                 serverBuilder
                         .comment(
                                 "Length of retained entity history in server ticks. 20 ticks = 1 second.")
@@ -88,7 +129,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().snapshotHistoryTicks(),
                                 TemporalConfigSnapshot.MIN_HISTORY_TICKS,
                                 TemporalConfigSnapshot.MAX_HISTORY_TICKS);
-        MAX_TRACKED_ENTITIES_PER_SESSION =
+        ModConfigSpec.IntValue maxTrackedEntitiesPerSession =
                 serverBuilder
                         .comment("Maximum nearby entities captured per active temporal session.")
                         .defineInRange(
@@ -96,14 +137,14 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().maxTrackedEntities(),
                                 TemporalConfigSnapshot.MIN_TRACKED_ENTITIES,
                                 TemporalConfigSnapshot.MAX_TRACKED_ENTITIES);
-        SNAPSHOT_PLAYERS_ALWAYS =
+        ModConfigSpec.BooleanValue snapshotPlayersAlways =
                 serverBuilder
                         .comment(
                                 "Keep bounded snapshot history for online players even when no temporal session is active.")
                         .define(
                                 "snapshotPlayersAlways",
                                 TemporalConfigSnapshot.defaults().snapshotPlayersAlways());
-        TRACK_NEW_ENTITIES_ENTERING_SESSION_RADIUS =
+        ModConfigSpec.BooleanValue trackNewEntitiesEnteringSessionRadius =
                 serverBuilder
                         .comment(
                                 "When enabled, eligible entities that enter an active session radius begin receiving snapshot history. Disable to keep each session limited to entities admitted when the session first scans.")
@@ -112,9 +153,16 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults()
                                         .trackNewEntitiesEnteringSessionRadius());
         serverBuilder.pop();
+        return new SnapshotConfig(
+                historyTicks,
+                maxTrackedEntitiesPerSession,
+                snapshotPlayersAlways,
+                trackNewEntitiesEnteringSessionRadius);
+    }
 
+    private static NetworkingConfig registerNetworkingConfig(ModConfigSpec.Builder serverBuilder) {
         serverBuilder.push("networking");
-        GHOST_FRAME_INTERVAL_TICKS =
+        ModConfigSpec.IntValue ghostFrameIntervalTicks =
                 serverBuilder
                         .comment(
                                 "Interval between ghost frame packets in server ticks. Lower values are smoother but use more bandwidth.")
@@ -123,7 +171,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().ghostFrameIntervalTicks(),
                                 TemporalConfigSnapshot.MIN_GHOST_FRAME_INTERVAL,
                                 TemporalConfigSnapshot.MAX_GHOST_FRAME_INTERVAL);
-        AFTERIMAGE_INTERVAL_TICKS =
+        ModConfigSpec.IntValue afterimageIntervalTicks =
                 serverBuilder
                         .comment(
                                 "Interval between afterimage anchors in server ticks. Lower values are smoother but use more bandwidth.")
@@ -132,7 +180,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().afterimageIntervalTicks(),
                                 TemporalConfigSnapshot.MIN_AFTERIMAGE_INTERVAL,
                                 TemporalConfigSnapshot.MAX_AFTERIMAGE_INTERVAL);
-        AFTERIMAGE_LIFETIME_TICKS =
+        ModConfigSpec.IntValue afterimageLifetimeTicks =
                 serverBuilder
                         .comment("Lifetime of an afterimage anchor on observing clients, in ticks.")
                         .defineInRange(
@@ -140,7 +188,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().afterimageLifetimeTicks(),
                                 TemporalConfigSnapshot.MIN_AFTERIMAGE_LIFETIME,
                                 TemporalConfigSnapshot.MAX_AFTERIMAGE_LIFETIME);
-        AFTERIMAGE_OBSERVER_RADIUS =
+        ModConfigSpec.DoubleValue afterimageObserverRadius =
                 serverBuilder
                         .comment("Maximum distance at which players receive afterimage anchors.")
                         .defineInRange(
@@ -149,15 +197,22 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.MIN_AFTERIMAGE_OBSERVER_RADIUS,
                                 TemporalConfigSnapshot.MAX_AFTERIMAGE_OBSERVER_RADIUS);
         serverBuilder.pop();
+        return new NetworkingConfig(
+                ghostFrameIntervalTicks,
+                afterimageIntervalTicks,
+                afterimageLifetimeTicks,
+                afterimageObserverRadius);
+    }
 
+    private static InterceptConfig registerInterceptConfig(ModConfigSpec.Builder serverBuilder) {
         serverBuilder.push("temporalIntercept");
-        TEMPORAL_INTERCEPT_ENABLED =
+        ModConfigSpec.BooleanValue temporalInterceptEnabled =
                 serverBuilder
                         .comment("Enable limited server-authoritative temporal block intercepts.")
                         .define(
                                 "enabled",
                                 TemporalConfigSnapshot.defaults().temporalInterceptEnabled());
-        MAX_TEMPORAL_BLOCKS_PER_SESSION =
+        ModConfigSpec.IntValue maxTemporalBlocksPerSession =
                 serverBuilder
                         .comment("Maximum placed temporal obstacles retained per active session.")
                         .defineInRange(
@@ -165,7 +220,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().maxTemporalBlocksPerSession(),
                                 TemporalConfigSnapshot.MIN_TEMPORAL_BLOCKS,
                                 TemporalConfigSnapshot.MAX_TEMPORAL_BLOCKS);
-        MAX_INTERCEPT_CORRECTION_DISTANCE =
+        ModConfigSpec.DoubleValue maxInterceptCorrectionDistance =
                 serverBuilder
                         .comment(
                                 "Maximum distance a real entity may be position-corrected by an intercept.")
@@ -175,9 +230,15 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.MIN_INTERCEPT_CORRECTION_DISTANCE,
                                 TemporalConfigSnapshot.MAX_INTERCEPT_CORRECTION_DISTANCE);
         serverBuilder.pop();
+        return new InterceptConfig(
+                temporalInterceptEnabled,
+                maxTemporalBlocksPerSession,
+                maxInterceptCorrectionDistance);
+    }
 
+    private static CombatConfig registerCombatConfig(ModConfigSpec.Builder serverBuilder) {
         serverBuilder.push("phantomCombat");
-        PHANTOM_ATTACK_REACH =
+        ModConfigSpec.DoubleValue phantomAttackReach =
                 serverBuilder
                         .comment("Maximum distance for server-validated phantom attacks.")
                         .defineInRange(
@@ -185,7 +246,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().phantomAttackReach(),
                                 TemporalConfigSnapshot.MIN_ATTACK_REACH,
                                 TemporalConfigSnapshot.MAX_ATTACK_REACH);
-        PHANTOM_DAMAGE_MULTIPLIER =
+        ModConfigSpec.DoubleValue phantomDamageMultiplier =
                 serverBuilder
                         .comment("Multiplier applied to the attacker's base attack damage.")
                         .defineInRange(
@@ -193,7 +254,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().phantomDamageMultiplier(),
                                 TemporalConfigSnapshot.MIN_DAMAGE_MULTIPLIER,
                                 TemporalConfigSnapshot.MAX_DAMAGE_MULTIPLIER);
-        PHANTOM_ATTACK_COOLDOWN_TICKS =
+        ModConfigSpec.IntValue phantomAttackCooldownTicks =
                 serverBuilder
                         .comment("Minimum ticks between successful phantom attacks.")
                         .defineInRange(
@@ -201,7 +262,7 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.defaults().phantomAttackCooldownTicks(),
                                 TemporalConfigSnapshot.MIN_ATTACK_COOLDOWN_TICKS,
                                 TemporalConfigSnapshot.MAX_ATTACK_COOLDOWN_TICKS);
-        PHANTOM_ALLOWED_HIT_TICK_DRIFT =
+        ModConfigSpec.DoubleValue phantomAllowedHitTickDrift =
                 serverBuilder
                         .comment(
                                 "Maximum difference in perceived ticks between the client's rendered ghost frame and the server timeline.")
@@ -211,10 +272,41 @@ public final class TimeEngineConfig {
                                 TemporalConfigSnapshot.MIN_HIT_TICK_DRIFT,
                                 TemporalConfigSnapshot.MAX_HIT_TICK_DRIFT);
         serverBuilder.pop();
-        SERVER_SPEC = serverBuilder.build();
+        return new CombatConfig(
+                phantomAttackReach,
+                phantomDamageMultiplier,
+                phantomAttackCooldownTicks,
+                phantomAllowedHitTickDrift);
     }
 
-    private TimeEngineConfig() {}
+    private record SessionConfig(
+            ModConfigSpec.IntValue durationTicks,
+            ModConfigSpec.IntValue cooldownTicks,
+            ModConfigSpec.DoubleValue timeScale,
+            ModConfigSpec.DoubleValue radius) {}
+
+    private record SnapshotConfig(
+            ModConfigSpec.IntValue historyTicks,
+            ModConfigSpec.IntValue maxTrackedEntitiesPerSession,
+            ModConfigSpec.BooleanValue snapshotPlayersAlways,
+            ModConfigSpec.BooleanValue trackNewEntitiesEnteringSessionRadius) {}
+
+    private record NetworkingConfig(
+            ModConfigSpec.IntValue ghostFrameIntervalTicks,
+            ModConfigSpec.IntValue afterimageIntervalTicks,
+            ModConfigSpec.IntValue afterimageLifetimeTicks,
+            ModConfigSpec.DoubleValue afterimageObserverRadius) {}
+
+    private record InterceptConfig(
+            ModConfigSpec.BooleanValue temporalInterceptEnabled,
+            ModConfigSpec.IntValue maxTemporalBlocksPerSession,
+            ModConfigSpec.DoubleValue maxInterceptCorrectionDistance) {}
+
+    private record CombatConfig(
+            ModConfigSpec.DoubleValue phantomAttackReach,
+            ModConfigSpec.DoubleValue phantomDamageMultiplier,
+            ModConfigSpec.IntValue phantomAttackCooldownTicks,
+            ModConfigSpec.DoubleValue phantomAllowedHitTickDrift) {}
 
     public static boolean diagnosticLogging() {
         return DIAGNOSTIC_LOGGING.get();

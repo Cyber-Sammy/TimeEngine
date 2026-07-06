@@ -27,12 +27,30 @@ public final class TemporalServerEvents {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        // Order matters: sessions update active timelines, snapshots capture the resulting world
+        // state, causal/intercept systems consume snapshots, and broadcasters sync final views.
+        tickTemporalSessions(event);
+        captureSnapshots(event);
+        updateTemporalSystems(event);
+        broadcastTemporalViews(event);
+    }
+
+    private static void tickTemporalSessions(ServerTickEvent.Post event) {
         TemporalSessionManager.getInstance()
                 .tick(event.getServer())
                 .forEach(ModNetworking::sendState);
+    }
+
+    private static void captureSnapshots(ServerTickEvent.Post event) {
         SnapshotManager.getInstance().tick(event.getServer());
+    }
+
+    private static void updateTemporalSystems(ServerTickEvent.Post event) {
         CausalLinkRuntimeService.getInstance().tick(event.getServer());
         TemporalInterceptManager.getInstance().tick(event.getServer());
+    }
+
+    private static void broadcastTemporalViews(ServerTickEvent.Post event) {
         GhostFrameBroadcaster.tick(event.getServer());
         CausalLinkFrameBroadcaster.tick(event.getServer());
         AfterimageBroadcaster.tick(event.getServer());

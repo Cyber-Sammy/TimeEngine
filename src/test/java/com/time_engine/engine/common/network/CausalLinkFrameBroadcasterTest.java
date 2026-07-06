@@ -23,18 +23,12 @@ class CausalLinkFrameBroadcasterTest {
     @Test
     void pursuitRenderStateUsesCurrentTargetAnchorAndCausalProgress() {
         CausalLink link =
-                new CausalLink(
-                        OWNER_ID,
-                        TARGET_ID,
-                        CausalLinkState.SOFT_LOCK,
-                        0,
-                        10,
-                        0,
-                        frame(TARGET_ID, new Vec3(10.0D, 0.0D, 0.0D)),
-                        frame(TARGET_ID, new Vec3(10.0D, 0.0D, 0.0D)),
-                        frame(OWNER_ID, Vec3.ZERO),
-                        frame(OWNER_ID, new Vec3(100.0D, 0.0D, 0.0D)),
-                        0.5D);
+                linkBuilder()
+                        .targetAt(new Vec3(10.0D, 0.0D, 0.0D))
+                        .ownerOriginAt(Vec3.ZERO)
+                        .ownerLatestAt(new Vec3(100.0D, 0.0D, 0.0D))
+                        .progress(0.5D)
+                        .build();
 
         TemporalEntityRenderState state =
                 CausalLinkFrameBroadcaster.pursuitRenderState(link, new Vec3(20.0D, 0.0D, 0.0D));
@@ -47,18 +41,12 @@ class CausalLinkFrameBroadcasterTest {
     @Test
     void payloadCanBeBuiltForNonPlayerTargetDebugState() {
         CausalLink link =
-                new CausalLink(
-                        OWNER_ID,
-                        TARGET_ID,
-                        CausalLinkState.SOFT_LOCK,
-                        0,
-                        10,
-                        0,
-                        frame(TARGET_ID, new Vec3(8.0D, 0.0D, 0.0D)),
-                        frame(TARGET_ID, new Vec3(8.0D, 0.0D, 0.0D)),
-                        frame(OWNER_ID, Vec3.ZERO),
-                        frame(OWNER_ID, Vec3.ZERO),
-                        0.25D);
+                linkBuilder()
+                        .targetAt(new Vec3(8.0D, 0.0D, 0.0D))
+                        .ownerOriginAt(Vec3.ZERO)
+                        .ownerLatestAt(Vec3.ZERO)
+                        .progress(0.25D)
+                        .build();
 
         CausalLinkFramePayload payload =
                 CausalLinkFrameBroadcaster.payloadFor(
@@ -91,5 +79,51 @@ class CausalLinkFrameBroadcasterTest {
                 anchor.x + 0.5D,
                 anchor.y + 1.8D,
                 anchor.z + 0.5D);
+    }
+
+    private static LinkBuilder linkBuilder() {
+        return new LinkBuilder();
+    }
+
+    private static final class LinkBuilder {
+        private Vec3 targetAnchor = Vec3.ZERO;
+        private Vec3 ownerOriginAnchor = Vec3.ZERO;
+        private Vec3 ownerLatestAnchor = Vec3.ZERO;
+        private double progress;
+
+        private LinkBuilder targetAt(Vec3 anchor) {
+            targetAnchor = anchor;
+            return this;
+        }
+
+        private LinkBuilder ownerOriginAt(Vec3 anchor) {
+            ownerOriginAnchor = anchor;
+            return this;
+        }
+
+        private LinkBuilder ownerLatestAt(Vec3 anchor) {
+            ownerLatestAnchor = anchor;
+            return this;
+        }
+
+        private LinkBuilder progress(double value) {
+            progress = value;
+            return this;
+        }
+
+        private CausalLink build() {
+            return new CausalLink(
+                    OWNER_ID,
+                    TARGET_ID,
+                    CausalLinkState.SOFT_LOCK,
+                    0,
+                    10,
+                    0,
+                    frame(TARGET_ID, targetAnchor),
+                    frame(TARGET_ID, targetAnchor),
+                    frame(OWNER_ID, ownerOriginAnchor),
+                    frame(OWNER_ID, ownerLatestAnchor),
+                    progress);
+        }
     }
 }

@@ -3,37 +3,26 @@ package com.time_engine.engine.common.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.time_engine.engine.common.causal.CausalLink;
-import com.time_engine.engine.common.causal.CausalLinkDiagnostics;
-import com.time_engine.engine.common.causal.CausalLinkRuntimeService;
-import com.time_engine.engine.common.causal.CausalLinkView;
 import com.time_engine.engine.common.intercept.TemporalInterceptManager;
 import com.time_engine.engine.common.network.ModNetworking;
 import com.time_engine.engine.common.policy.TemporalPolicy.Decision;
 import com.time_engine.engine.common.policy.TemporalPolicy.Operation;
 import com.time_engine.engine.common.policy.TemporalPolicyDefaults;
 import com.time_engine.engine.common.policy.TemporalPolicyResolver;
-import com.time_engine.engine.common.policy.TemporalPolicyResolver.ReloadStats;
-import com.time_engine.engine.common.policy.TemporalPolicyResolver.ResolvedPolicy;
 import com.time_engine.engine.common.snapshot.SnapshotManager;
 import com.time_engine.engine.common.temporal.TemporalLayerRelation;
 import com.time_engine.engine.common.temporal.TemporalScaleResolver;
 import com.time_engine.engine.common.temporal.TemporalSession;
 import com.time_engine.engine.common.temporal.TemporalSessionManager;
 import com.time_engine.engine.config.TemporalConfigService;
-import com.time_engine.engine.util.ModLog;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.block.state.BlockState;
 
 public final class TemporalDebugCommands {
     private TemporalDebugCommands() {}
@@ -67,53 +56,9 @@ public final class TemporalDebugCommands {
                                                                 context.getSource(),
                                                                 EntityArgument.getEntity(
                                                                         context, "target")))));
-        root.then(createCausalCommand());
-        root.then(createPoliciesCommand());
+        root.then(CausalDebugCommands.create());
+        root.then(TemporalPolicyDebugCommands.create());
         dispatcher.register(root);
-    }
-
-    private static LiteralArgumentBuilder<CommandSourceStack> createCausalCommand() {
-        LiteralArgumentBuilder<CommandSourceStack> causal =
-                Commands.literal("causal")
-                        .executes(context -> showCausalLinks(context.getSource()));
-        causal.then(
-                Commands.argument("player", EntityArgument.player())
-                        .executes(
-                                context ->
-                                        showCausalLink(
-                                                context.getSource(),
-                                                EntityArgument.getPlayer(context, "player"))));
-        return causal;
-    }
-
-    private static LiteralArgumentBuilder<CommandSourceStack> createPoliciesCommand() {
-        LiteralArgumentBuilder<CommandSourceStack> policies =
-                Commands.literal("policies")
-                        .executes(context -> showPolicyStats(context.getSource()));
-        policies.then(
-                Commands.literal("reload")
-                        .executes(context -> reloadPolicies(context.getSource())));
-        policies.then(
-                Commands.literal("entity")
-                        .then(
-                                Commands.argument("target", EntityArgument.entity())
-                                        .executes(
-                                                context ->
-                                                        showEntityPolicy(
-                                                                context.getSource(),
-                                                                EntityArgument.getEntity(
-                                                                        context, "target")))));
-        policies.then(
-                Commands.literal("block")
-                        .then(
-                                Commands.argument("position", BlockPosArgument.blockPos())
-                                        .executes(
-                                                context ->
-                                                        showBlockPolicy(
-                                                                context.getSource(),
-                                                                BlockPosArgument.getLoadedBlockPos(
-                                                                        context, "position")))));
-        return policies;
     }
 
     private static int openConfig(CommandSourceStack source) throws CommandSyntaxException {
@@ -244,142 +189,6 @@ public final class TemporalDebugCommands {
         return 1;
     }
 
-    private static int showCausalLinks(CommandSourceStack source) {
-        int serverTick = source.getServer().getTickCount();
-        var views = CausalLinkRuntimeService.getInstance().linkManager().views(serverTick);
-        if (views.isEmpty()) {
-            source.sendFailure(Component.literal("Time Engine causal: no causal links"));
-            return 0;
-        }
-
-        sendSuccess(source, "Time Engine causal links: count=%d", views.size());
-        for (CausalLinkView view : views) {
-            source.sendSuccess(
-                    () ->
-                            Component.literal(
-                                    "Time Engine causal: " + CausalLinkDiagnostics.summary(view)),
-                    false);
-        }
-        return views.size();
-    }
-
-    private static int showCausalLink(CommandSourceStack source, ServerPlayer owner) {
-        Optional<CausalLink> link =
-                CausalLinkRuntimeService.getInstance()
-                        .linkManager()
-                        .getLink(owner.getUUID())
-                        .filter(CausalLink::active);
-        if (link.isEmpty()) {
-            source.sendFailure(
-                    Component.literal(
-                            "Time Engine causal: no active causal link for "
-                                    + owner.getName().getString()));
-            return 0;
-        }
-
-        CausalLink activeLink = link.orElseThrow();
-        Optional<Entity> target = findEntity(source, activeLink.targetId());
-        sendSuccess(
-                source,
-                "%s",
-                CausalLinkDiagnostics.detail(
-                        activeLink,
-                        source.getServer().getTickCount(),
-                        owner.getName().getString(),
-                        targetName(target, activeLink.targetId()),
-                        target.isPresent(),
-                        target.map(Entity::isAlive).orElse(false),
-                        target.map(entity -> relationAllows(owner, entity)).orElse(false),
-                        target.map(TemporalDebugCommands::isCombatAllowed).orElse(false)));
-        return 1;
-    }
-
-    private static int showPolicyStats(CommandSourceStack source) {
-        ReloadStats stats = TemporalPolicyResolver.getInstance().stats();
-        sendSuccess(
-                source,
-                "Time Engine policies: loaded=%d, rejected=%d, generation=%d",
-                stats.loadedPolicies(),
-                stats.rejectedPolicies(),
-                stats.generation());
-        return 1;
-    }
-
-    private static int reloadPolicies(CommandSourceStack source) {
-        var server = source.getServer();
-        source.sendSuccess(() -> Component.literal("Time Engine: reloading datapacks"), false);
-        server.reloadResources(server.getPackRepository().getSelectedIds())
-                .whenComplete(
-                        (ignored, error) ->
-                                server.execute(() -> reportPolicyReload(source, error)));
-        return 1;
-    }
-
-    private static void reportPolicyReload(CommandSourceStack source, Throwable error) {
-        if (error != null) {
-            ModLog.error("Datapack reload requested by Time Engine failed", error);
-            source.sendFailure(Component.literal("Time Engine: datapack reload failed"));
-            return;
-        }
-        ReloadStats stats = TemporalPolicyResolver.getInstance().stats();
-        sendSuccess(
-                source,
-                "Time Engine policies reloaded: loaded=%d, rejected=%d",
-                stats.loadedPolicies(),
-                stats.rejectedPolicies());
-    }
-
-    private static int showEntityPolicy(CommandSourceStack source, Entity target) {
-        TemporalPolicyResolver resolver = TemporalPolicyResolver.getInstance();
-        ResolvedPolicy snapshot =
-                resolver.resolveEntity(
-                        target, Operation.SNAPSHOT, TemporalPolicyDefaults.snapshot(target));
-        ResolvedPolicy combat =
-                resolver.resolveEntity(
-                        target,
-                        Operation.PHANTOM_COMBAT,
-                        TemporalPolicyDefaults.phantomCombat(target));
-        ResolvedPolicy intercept =
-                resolver.resolveEntity(
-                        target,
-                        Operation.TEMPORAL_INTERCEPT,
-                        TemporalPolicyDefaults.interceptEntity(target));
-        sendSuccess(
-                source,
-                "Time Engine entity policy for %s: snapshot=%s, combat=%s, intercept=%s",
-                target.getName().getString(),
-                describe(snapshot),
-                describe(combat),
-                describe(intercept));
-        return 1;
-    }
-
-    private static int showBlockPolicy(
-            CommandSourceStack source, net.minecraft.core.BlockPos position) {
-        BlockState blockState = source.getLevel().getBlockState(position);
-        TemporalPolicyResolver resolver = TemporalPolicyResolver.getInstance();
-        ResolvedPolicy intercept =
-                resolver.resolveBlock(
-                        blockState,
-                        Operation.TEMPORAL_INTERCEPT,
-                        TemporalPolicyDefaults.interceptBlock());
-        ResolvedPolicy interaction =
-                resolver.resolveBlock(
-                        blockState, Operation.INTERACTION, TemporalPolicyDefaults.interaction());
-        sendSuccess(
-                source,
-                "Time Engine block policy at %s: intercept=%s, interaction=%s",
-                position.toShortString(),
-                describe(intercept),
-                describe(interaction));
-        return 1;
-    }
-
-    private static String describe(ResolvedPolicy policy) {
-        String source = policy.policyId().map(Object::toString).orElse("fallback");
-        return policy.decision().name().toLowerCase(Locale.ROOT) + "[" + source + "]";
-    }
-
     private static double relativePerceivedTick(
             CommandSourceStack source, ServerPlayer observer, Entity target) {
         int currentTick = source.getServer().getTickCount();
@@ -400,28 +209,7 @@ public final class TemporalDebugCommands {
                 == Decision.ALLOW;
     }
 
-    private static boolean relationAllows(ServerPlayer owner, Entity target) {
-        TemporalScaleResolver scaleResolver = TemporalScaleResolver.server();
-        return TemporalLayerRelation.compare(
-                        scaleResolver.effectiveScale(owner), scaleResolver.effectiveScale(target))
-                .allowsAttackableGhost();
-    }
-
-    private static Optional<Entity> findEntity(CommandSourceStack source, UUID entityId) {
-        for (ServerLevel level : source.getServer().getAllLevels()) {
-            Entity entity = level.getEntity(entityId);
-            if (entity != null) {
-                return Optional.of(entity);
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static String targetName(Optional<Entity> target, UUID targetId) {
-        return target.map(entity -> entity.getName().getString()).orElse(targetId.toString());
-    }
-
-    private static void sendSuccess(CommandSourceStack source, String format, Object... arguments) {
+    static void sendSuccess(CommandSourceStack source, String format, Object... arguments) {
         Component message = Component.literal(String.format(Locale.ROOT, format, arguments));
         source.sendSuccess(() -> message, false);
     }
