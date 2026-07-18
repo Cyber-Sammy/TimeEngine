@@ -126,6 +126,31 @@ public record CausalLink(
                 progress);
     }
 
+    public CausalLink forceDebugState(
+            CausalLinkState forcedState, int serverTick, int hardLockTicks) {
+        if (forcedState == CausalLinkState.HARD_LOCK) {
+            return hardLock(serverTick, hardLockTicks);
+        }
+        if (forcedState == CausalLinkState.BROKEN) {
+            return breakLink(serverTick);
+        }
+        if (forcedState == CausalLinkState.EXPIRED) {
+            return expire(serverTick);
+        }
+        return new CausalLink(
+                ownerId,
+                targetId,
+                CausalLinkState.SOFT_LOCK,
+                selectedTick,
+                serverTick,
+                serverTick,
+                latestFrame,
+                originTargetFrame,
+                originOwnerFrame,
+                ownerFrame,
+                progress);
+    }
+
     public CausalLink expire(int serverTick) {
         return terminal(CausalLinkState.EXPIRED, serverTick);
     }

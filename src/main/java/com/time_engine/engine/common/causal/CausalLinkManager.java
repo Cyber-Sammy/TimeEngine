@@ -3,6 +3,7 @@ package com.time_engine.engine.common.causal;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -12,6 +13,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class CausalLinkManager {
     private final Map<UUID, CausalLink> linksByOwner = new HashMap<>();
+    private final Set<UUID> debugFrozenOwners = new HashSet<>();
 
     public Optional<CausalLink> getLink(UUID ownerId) {
         return Optional.ofNullable(linksByOwner.get(ownerId));
@@ -34,14 +36,55 @@ public final class CausalLinkManager {
 
     public void clearLink(UUID ownerId) {
         linksByOwner.remove(ownerId);
+        debugFrozenOwners.remove(ownerId);
     }
 
     public void clear() {
         linksByOwner.clear();
+        debugFrozenOwners.clear();
     }
 
     public void clearInactiveOwners(Set<UUID> activeOwnerIds) {
         linksByOwner.keySet().removeIf(ownerId -> !activeOwnerIds.contains(ownerId));
+        debugFrozenOwners.removeIf(ownerId -> !activeOwnerIds.contains(ownerId));
+    }
+
+    public boolean isDebugFrozen(UUID ownerId) {
+        return debugFrozenOwners.contains(ownerId);
+    }
+
+    public Optional<CausalLink> forceDebugState(
+            UUID ownerId, CausalLinkState forcedState, int serverTick, int hardLockTicks) {
+        Optional<CausalLink> link = getLink(ownerId);
+        if (link.isEmpty()) {
+            return Optional.empty();
+        }
+
+        CausalLink forced =
+                link.orElseThrow().forceDebugState(forcedState, serverTick, hardLockTicks);
+        putLink(forced);
+        debugFrozenOwners.add(ownerId);
+        return Optional.of(forced);
+    }
+
+    public CausalLink forceDebugLink(
+            UUID ownerId,
+            UUID targetId,
+            CausalLinkState forcedState,
+            int serverTick,
+            int hardLockTicks,
+            CausalPhantomFrame targetFrame,
+            CausalPhantomFrame ownerFrame) {
+        CausalLink baseLink =
+                CausalLink.softLocked(ownerId, targetId, serverTick, targetFrame, ownerFrame);
+        CausalLink forced = baseLink.forceDebugState(forcedState, serverTick, hardLockTicks);
+        putLink(forced);
+        debugFrozenOwners.add(ownerId);
+        return forced;
+    }
+
+    public void clearDebugState(UUID ownerId) {
+        debugFrozenOwners.remove(ownerId);
     }
 
     public Optional<CausalLink> updateSoftLock(

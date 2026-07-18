@@ -1,6 +1,8 @@
 package com.time_engine.engine.common.causal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -25,6 +27,45 @@ class CausalLinkManagerTest {
                 manager.updateSoftLock(OWNER_ID, selection, 2, frame(), 0.5D).orElseThrow();
 
         assertEquals(CausalLinkState.HARD_LOCK, refreshed.state());
+    }
+
+    @Test
+    void hardLockPreservesPursuitProgress() {
+        CausalLinkManager manager = new CausalLinkManager();
+        CausalTargetSelection selection = CausalTargetSelection.selected(candidate(), 10.0D);
+        advanceProgress(manager, selection, 0.25D);
+
+        CausalLink hardLocked = manager.hardLock(OWNER_ID, 1, 20).orElseThrow();
+
+        assertEquals(CausalLinkState.HARD_LOCK, hardLocked.state());
+        assertEquals(0.25D, hardLocked.progress(), 1.0E-8D);
+    }
+
+    @Test
+    void sameTargetSoftRefreshCanMovePursuitProgressBackwards() {
+        CausalLinkManager manager = new CausalLinkManager();
+        CausalTargetSelection selection = CausalTargetSelection.selected(candidate(), 10.0D);
+        advanceProgress(manager, selection, 0.5D);
+
+        CausalLink refreshed =
+                manager.updateSoftLock(OWNER_ID, selection, 2, frame(), frame(OWNER_ID), 0.25D)
+                        .orElseThrow();
+
+        assertEquals(CausalLinkState.SOFT_LOCK, refreshed.state());
+        assertEquals(0.25D, refreshed.progress(), 1.0E-8D);
+    }
+
+    @Test
+    void sameTargetRefreshCanMovePursuitProgressForward() {
+        CausalLinkManager manager = new CausalLinkManager();
+        CausalTargetSelection selection = CausalTargetSelection.selected(candidate(), 10.0D);
+        advanceProgress(manager, selection, 0.25D);
+
+        CausalLink refreshed =
+                manager.updateSoftLock(OWNER_ID, selection, 2, frame(), frame(OWNER_ID), 0.5D)
+                        .orElseThrow();
+
+        assertEquals(0.5D, refreshed.progress(), 1.0E-8D);
     }
 
     @Test
@@ -127,6 +168,62 @@ class CausalLinkManagerTest {
     }
 
     @Test
+    void forceDebugStateFreezesManagedLink() {
+        CausalLinkManager manager = new CausalLinkManager();
+        manager.updateSoftLock(
+                OWNER_ID,
+                CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
+                0,
+                frame(TARGET_ID),
+                0.0D);
+
+        CausalLink forced =
+                manager.forceDebugState(OWNER_ID, CausalLinkState.BROKEN, 5, 20).orElseThrow();
+
+        assertEquals(CausalLinkState.BROKEN, forced.state());
+        assertEquals(5, forced.lastUpdatedTick());
+        assertTrue(manager.isDebugFrozen(OWNER_ID));
+    }
+
+    @Test
+    void forceDebugLinkCreatesFrozenLinkWhenNoneExists() {
+        CausalLinkManager manager = new CausalLinkManager();
+        CausalPhantomFrame targetFrame = frame(TARGET_ID);
+        CausalPhantomFrame ownerFrame = frame(OWNER_ID);
+
+        CausalLink forced =
+                manager.forceDebugLink(
+                        OWNER_ID,
+                        TARGET_ID,
+                        CausalLinkState.HARD_LOCK,
+                        5,
+                        20,
+                        targetFrame,
+                        ownerFrame);
+
+        assertEquals(OWNER_ID, forced.ownerId());
+        assertEquals(TARGET_ID, forced.targetId());
+        assertEquals(CausalLinkState.HARD_LOCK, forced.state());
+        assertTrue(manager.isDebugFrozen(OWNER_ID));
+    }
+
+    @Test
+    void clearDebugStateResumesRuntimeOwnership() {
+        CausalLinkManager manager = new CausalLinkManager();
+        manager.updateSoftLock(
+                OWNER_ID,
+                CausalTargetSelection.selected(candidate(TARGET_ID), 10.0D),
+                0,
+                frame(TARGET_ID),
+                0.0D);
+        manager.forceDebugState(OWNER_ID, CausalLinkState.EXPIRED, 5, 20);
+
+        manager.clearDebugState(OWNER_ID);
+
+        assertFalse(manager.isDebugFrozen(OWNER_ID));
+    }
+
+    @Test
     void targetSwitchResetsOriginFrames() {
         CausalLinkManager manager = new CausalLinkManager();
         CausalPhantomFrame firstTargetFrame = frame(TARGET_ID, new Vec3(10.0D, 0.0D, 0.0D));
@@ -162,6 +259,12 @@ class CausalLinkManagerTest {
 
     private static CausalTargetCandidate candidate(UUID targetId) {
         return CausalTargetCandidate.target(targetId, Vec3.ZERO, bounds());
+    }
+
+    private static void advanceProgress(
+            CausalLinkManager manager, CausalTargetSelection selection, double progress) {
+        manager.updateSoftLock(OWNER_ID, selection, 0, frame(), 0.0D);
+        manager.updateSoftLock(OWNER_ID, selection, 1, frame(), progress);
     }
 
     private static CausalPhantomFrame frame() {
