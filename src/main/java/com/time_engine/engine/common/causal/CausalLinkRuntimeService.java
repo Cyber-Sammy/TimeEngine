@@ -239,10 +239,8 @@ public final class CausalLinkRuntimeService {
         }
 
         CausalLink link = previousLink.get();
-        if (link.targetId().equals(selectedCandidate.candidate().targetId())) {
-            return false;
-        }
-        if (link.progress() >= COMPLETED_PURSUIT_PROGRESS) {
+        if (!canRetainPreviousDuringSwitch(
+                previousLink, selectedCandidate.candidate().targetId())) {
             return false;
         }
 
@@ -259,8 +257,28 @@ public final class CausalLinkRuntimeService {
         if (previousLink.isEmpty()) {
             return Optional.empty();
         }
-        return currentCandidateForPrevious(previousLink.get(), candidates)
-                .or(() -> lastKnownFrameCandidateForPreviousTarget(previousLink.get()));
+        CausalLink link = previousLink.get();
+        if (!link.active()) {
+            return Optional.empty();
+        }
+        return currentCandidateForPrevious(link, candidates)
+                .or(() -> lastKnownFrameCandidateForPreviousTarget(link));
+    }
+
+    static boolean canRetainPreviousDuringSwitch(
+            Optional<CausalLink> previousLink, UUID selectedTargetId) {
+        if (previousLink.isEmpty()) {
+            return false;
+        }
+
+        CausalLink link = previousLink.get();
+        if (!link.active()) {
+            return false;
+        }
+        if (link.targetId().equals(selectedTargetId)) {
+            return false;
+        }
+        return link.progress() < COMPLETED_PURSUIT_PROGRESS;
     }
 
     private Optional<CausalRuntimeCandidate> retainPreviousCandidate(
