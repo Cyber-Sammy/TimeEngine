@@ -238,7 +238,6 @@ public final class CausalLinkRuntimeService {
             return false;
         }
 
-        CausalLink link = previousLink.get();
         if (!canRetainPreviousDuringSwitch(
                 previousLink, selectedCandidate.candidate().targetId())) {
             return false;
