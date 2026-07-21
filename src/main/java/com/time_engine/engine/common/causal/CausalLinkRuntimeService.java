@@ -30,6 +30,7 @@ public final class CausalLinkRuntimeService {
     private static final CausalLinkRuntimeService INSTANCE = new CausalLinkRuntimeService();
     private static final double LOCKED_RADIUS_MULTIPLIER = 2.0D;
     private static final double MAX_DISTANCE_MULTIPLIER = 3.0D;
+    private static final double COMPLETED_PURSUIT_PROGRESS = 0.95D;
 
     private final CausalLinkManager linkManager = new CausalLinkManager();
     private final CausalTargetSelector targetSelector =
@@ -76,6 +77,10 @@ public final class CausalLinkRuntimeService {
 
         CausalTuning tuning = tuningFor(session);
         Optional<CausalLink> previousLink = linkManager.getLink(owner.getUUID());
+        if (linkManager.isDebugFrozen(owner.getUUID())) {
+            return;
+        }
+
         Collection<CausalRuntimeCandidate> runtimeCandidates =
                 collectRuntimeCandidates(owner, session, serverTick, tuning.trackingPolicy());
         CausalTargetSelection selection =
@@ -204,6 +209,14 @@ public final class CausalLinkRuntimeService {
         }
 
         CausalRuntimeCandidate runtimeCandidate = selectedCandidate.get();
+        Optional<CausalRuntimeCandidate> retainedPrevious =
+                retainedPreviousCandidate(previousLink, candidates);
+        if (shouldRetainPreviousInsteadOfSwitch(
+                owner, previousLink, runtimeCandidate, retainedPrevious, trackingPolicy)) {
+            refreshRetainedLink(owner, previousLink, retainedPrevious.orElseThrow(), serverTick);
+            return;
+        }
+
         CausalPhantomFrame ownerFrame = CausalPhantomFrame.capture(owner, serverTick);
         double progress = progress(previousLink, owner.position(), runtimeCandidate.frame());
         linkManager.updateSoftLock(
@@ -213,6 +226,58 @@ public final class CausalLinkRuntimeService {
                 runtimeCandidate.frame(),
                 ownerFrame,
                 progress);
+    }
+
+    private boolean shouldRetainPreviousInsteadOfSwitch(
+            ServerPlayer owner,
+            Optional<CausalLink> previousLink,
+            CausalRuntimeCandidate selectedCandidate,
+            Optional<CausalRuntimeCandidate> retainedPrevious,
+            CausalTrackingPolicy trackingPolicy) {
+        if (previousLink.isEmpty()) {
+            return false;
+        }
+
+        if (!canRetainPreviousDuringSwitch(
+                previousLink, selectedCandidate.candidate().targetId())) {
+            return false;
+        }
+
+        return retainedPrevious
+                .filter(
+                        candidate ->
+                                trackingPolicy.keepsLockedTarget(
+                                        owner.position(), candidate.candidate()))
+                .isPresent();
+    }
+
+    private Optional<CausalRuntimeCandidate> retainedPreviousCandidate(
+            Optional<CausalLink> previousLink, Collection<CausalRuntimeCandidate> candidates) {
+        if (previousLink.isEmpty()) {
+            return Optional.empty();
+        }
+        CausalLink link = previousLink.get();
+        if (!link.active()) {
+            return Optional.empty();
+        }
+        return currentCandidateForPrevious(link, candidates)
+                .or(() -> lastKnownFrameCandidateForPreviousTarget(link));
+    }
+
+    static boolean canRetainPreviousDuringSwitch(
+            Optional<CausalLink> previousLink, UUID selectedTargetId) {
+        if (previousLink.isEmpty()) {
+            return false;
+        }
+
+        CausalLink link = previousLink.get();
+        if (!link.active()) {
+            return false;
+        }
+        if (link.targetId().equals(selectedTargetId)) {
+            return false;
+        }
+        return link.progress() < COMPLETED_PURSUIT_PROGRESS;
     }
 
     private Optional<CausalRuntimeCandidate> retainPreviousCandidate(

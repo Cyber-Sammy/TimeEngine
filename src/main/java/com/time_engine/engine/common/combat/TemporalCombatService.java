@@ -1,5 +1,7 @@
 package com.time_engine.engine.common.combat;
 
+import com.time_engine.engine.common.causal.CausalLinkManager;
+import com.time_engine.engine.common.causal.CausalLinkRuntimeService;
 import com.time_engine.engine.common.combat.TemporalAttackValidator.RejectionReason;
 import com.time_engine.engine.common.combat.TemporalAttackValidator.ValidatedAttack;
 import com.time_engine.engine.common.combat.TemporalAttackValidator.ValidationResult;
@@ -43,6 +45,10 @@ public final class TemporalCombatService {
         }
 
         ValidatedAttack attack = result.attack();
+        if (!validateCausalLink(attacker, attack, serverTick)) {
+            return;
+        }
+
         PhantomDamageResult damageResult =
                 damageResolver.apply(PhantomDamageContext.from(attacker, attack));
         if (!damageResult.applied()) {
@@ -54,6 +60,7 @@ public final class TemporalCombatService {
             logRejection(attacker, RejectionReason.DAMAGE_REJECTED, serverTick);
             return;
         }
+        CausalCombatValidator.hardLockAcceptedHit(causalLinkManager(), attackerId, serverTick);
         TemporalAttackValidator.getInstance().recordSuccessfulAttack(attacker);
 
         ModLog.diagnostic(
@@ -106,5 +113,38 @@ public final class TemporalCombatService {
             return false;
         }
         return serverTick - lastLogTick < REJECTION_LOG_INTERVAL_TICKS;
+    }
+
+    private boolean validateCausalLink(
+            ServerPlayer attacker, ValidatedAttack attack, int serverTick) {
+        CausalCombatValidator.CausalCombatValidationResult causalResult =
+                CausalCombatValidator.validate(
+                        causalLinkManager(), attacker.getUUID(), attack.target().getUUID());
+        if (causalResult.accepted()) {
+            return true;
+        }
+
+        logRejection(attacker, causalRejectionReason(causalResult.rejectionReason()), serverTick);
+        return false;
+    }
+
+    private static CausalLinkRuntimeService causalRuntimeService() {
+        return CausalLinkRuntimeService.getInstance();
+    }
+
+    private static CausalLinkManager causalLinkManager() {
+        return causalRuntimeService().linkManager();
+    }
+
+    private static RejectionReason causalRejectionReason(
+            CausalCombatValidator.CausalCombatRejectionReason reason) {
+        return switch (reason) {
+            case NO_LINK -> RejectionReason.CAUSAL_LINK_NOT_FOUND;
+            case TARGET_MISMATCH -> RejectionReason.CAUSAL_TARGET_MISMATCH;
+            case BROKEN -> RejectionReason.CAUSAL_LINK_BROKEN;
+            case EXPIRED -> RejectionReason.CAUSAL_LINK_EXPIRED;
+            case INACTIVE -> RejectionReason.CAUSAL_LINK_INACTIVE;
+            case NONE -> RejectionReason.NONE;
+        };
     }
 }
